@@ -8,6 +8,7 @@ const app = express();
 
 // Place favicon middleware before other middleware and routes
 app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
+app.use(express.static(path.join(__dirname, "public")));
 
 
 // Include route files
@@ -17,7 +18,7 @@ const sessionsRoute = require('./routes/api/sessions');
 app.use('/sessions', sessionsRoute);
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, "views", "home.html"));
+    res.sendFile(path.join(__dirname, "public", "home.html"));
 });
 
 const port = process.env.PORT || 3000; // You can use environment variables for port configuration
