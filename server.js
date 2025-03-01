@@ -17,7 +17,6 @@ const sessionsRoute = require('./routes/api/sessions');
 app.use('/sessions', sessionsRoute);
 
 app.get('/', (req, res) => {
-    res.send('<h1>Hello, Express.js Server!</h1>');
     res.sendFile(path.join(__dirname, "views", "home.html"));
 });
 
