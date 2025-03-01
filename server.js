@@ -18,6 +18,7 @@ app.use('/sessions', sessionsRoute);
 
 app.get('/', (req, res) => {
     res.send('<h1>Hello, Express.js Server!</h1>');
+    res.sendFile(path.join(__dirname, "views", "home.html"));
 });
 
 const port = process.env.PORT || 3000; // You can use environment variables for port configuration
