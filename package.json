@@ -1,0 +1,29 @@
+{
+  "name": "relay-backend",
+  "version": "1.0.0",
+  "description": "backend of relay collab music app",
+  "keywords": [
+    "collaboration",
+    "music"
+  ],
+  "homepage": "https://github.com/evanlohn/Relay-backend#readme",
+  "bugs": {
+    "url": "https://github.com/evanlohn/Relay-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evanlohn/Relay-backend.git"
+  },
+  "license": "ISC",
+  "author": "Evan Lohn",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@magenta/music": "^1.23.1",
+    "express": "^4.21.2",
+    "serve-favicon": "^2.5.0"
+  }
+}
