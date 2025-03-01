@@ -45,6 +45,7 @@ router.post('/create-session', async (req, res) => {
     console.log('id');
     console.log(result);
 
+    res.send({id: result.rows[0].id});
 });
 
 router.get('/users-in-session', (req, res) => {
