@@ -19,7 +19,7 @@ const usersRoute = require('./routes/api/users');
 app.use('/sessions', sessionsRoute);
 app.use('/users', usersRoute);
 
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
     res.sendFile(path.join(__dirname, "public", "home.html"));
 });
 
@@ -29,12 +29,13 @@ app.listen(port, () => {
 });
 
 // example endpoint
-// console.log('a');
-// fetch('http://localhost:3000/sessions/create-session', {
+
+// example of getting response from the backend
+//
+// const response = await fetch('http://localhost:3000/sessions/create-session', {
 //     method: 'POST',
 //     headers: {'Content-Type': 'application/json'},
 //     body: JSON.stringify({})
-// }).then(
-//     (resp) => {console.log(JSON.stringify(resp));}
-// )
-// console.log('b');
+// });
+// const parsed = await response.json();
+// console.log(parsed);

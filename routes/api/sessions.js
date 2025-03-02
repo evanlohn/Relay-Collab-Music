@@ -3,6 +3,8 @@ const express = require('express');
 
 const router = express.Router();
 
+router.use(express.json());
+
 const utils = require('../utils');
 
 // Define a route
@@ -29,10 +31,6 @@ router.get('/101', (req, res) => {
     console.log('done');
 });
 
-router.get('/102', (req, res) => {
-    res.send('this is user 102 route');
-});
-
 router.post('/create-session', async (req, res) => {
     console.log('yo');
     const query = {
@@ -45,7 +43,11 @@ router.post('/create-session', async (req, res) => {
     console.log('id');
     console.log(result);
 
-    res.send({id: result.rows[0].id});
+    console.log(result.rows[0].id);
+    //res.writeHead(200, {'Content-Type': 'application/json'});
+    const x = {id: result.rows[0].id};
+    console.log(x);
+    res.send(result.rows[0]);
 });
 
 router.get('/users-in-session', (req, res) => {
