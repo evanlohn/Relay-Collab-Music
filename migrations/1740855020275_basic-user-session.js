@@ -21,7 +21,11 @@ exports.up = (pgm) => {
     pgm.createTable('users', {
       id: 'id',
       name: { type: 'varchar(1000)', notNull: true },
-      clef: { type: 'integer', notNull: true},
+      clef: { 
+        type: 'varchar(10)', 
+        notNull: true,
+        check: "clef IN ('treble', 'bass', 'alto')"
+      },
       isHost: { type: 'boolean', notNull: true},
       sessionId: {
         type: 'integer',

@@ -12,6 +12,13 @@ const app = express();
 // Place favicon middleware before other middleware and routes
 app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
+
+// Set EJS as the templating engine
+app.set('view engine', 'ejs');
+
+// Set the directory where your EJS templates (views) are located
+app.set('views', path.join(__dirname, 'views'));
 
 
 // Include route files
@@ -24,7 +31,15 @@ app.use('/users', usersRoute);
 
 app.get('/', async (req, res) => {
     res.sendFile(path.join(__dirname, "public", "home.html"));
+});
 
+app.get('/start/:sessionId', (req, res) => {
+    const sessionId = req.params.sessionId;
+    res.render('startSession', { sessionId });
+});
+
+app.get('/join', (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "joinSession.html"));
 });
 
 app.delete('/', (req, res) => {

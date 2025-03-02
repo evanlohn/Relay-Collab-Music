@@ -15,20 +15,20 @@ function addListener() {
             const data = { name, clef, sessionCode };
             console.log(data);
 
-            // fetch("/join-session", {
-            //     method: "POST",
-            //     headers: {
-            //         "Content-Type": "application/json"
-            //     },
-            //     body: JSON.stringify(data)
-            // })
-            // .then(response => response.json())
-            // .then(result => {
-            //     console.log("Success:", result);
-            //     // Redirect or update UI based on response
-            // })
-            // .catch(error => {
-            //     console.error("Error:", error);
-            // });
+            fetch("/sessions/join-session", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log("Success:", result);
+                // Redirect or update UI based on response
+            })
+            .catch(error => {
+                console.error("Error:", error);
+            });
         });
 }
