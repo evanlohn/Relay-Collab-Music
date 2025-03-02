@@ -7,6 +7,8 @@ const {
   } = require("express-validator");
 const router = express.Router();
 
+router.use(express.json());
+
 const utils = require('../utils');
 
 router.post('/create-user',
@@ -14,7 +16,7 @@ router.post('/create-user',
   body("clef").isInt({min:0, max:2}),
   body("isHost").isBoolean(),
   body("sessionId").isInt(),
- (req, res) => {
+ async (req, res) => {
     // name: { type: 'varchar(1000)', notNull: true },
     // clef: { type: 'integer', notNull: true},
     // isHost: { type: 'boolean', notNull: true},
@@ -24,18 +26,18 @@ router.post('/create-user',
     //   references: '"sessions"',
     //   onDelete: 'cascade',
     // },
-    const req_json = JSON.parse(req.body);
+    const req_json = req.json();
 
 
     const query = {
         name: 'create-session',
-        text: 'INSERT INTO users (name, clef, isHost, sessionId) VALUES ($1, $2, $3, $4)',
+        text: 'INSERT INTO users (name, clef, isHost, sessionId) VALUES ($1, $2, $3, $4) RETURNING id',
         values: [req_json.name, req_json.clef, req_json.isHost, req_json.sessionId],
         rowMode: Array,
     };
     const client = utils.getSession();
-    const result = client.query(query);
-
+    const result = await client.query(query);
+    res.send(result.rows[0]);
 });
 
 

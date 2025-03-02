@@ -32,7 +32,7 @@ router.get('/101', (req, res) => {
 });
 
 router.post('/create-session', async (req, res) => {
-    console.log('yo');
+
     const query = {
         name: 'create-session',
         text: 'INSERT INTO sessions (body) VALUES (\'{}\') RETURNING id',
@@ -40,13 +40,8 @@ router.post('/create-session', async (req, res) => {
     };
     const client = utils.getSession();
     const result = await client.query(query);
-    console.log('id');
-    console.log(result);
 
     console.log(result.rows[0].id);
-    //res.writeHead(200, {'Content-Type': 'application/json'});
-    const x = {id: result.rows[0].id};
-    console.log(x);
     res.send(result.rows[0]);
 });
 
