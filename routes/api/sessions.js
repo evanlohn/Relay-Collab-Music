@@ -4,7 +4,6 @@ const path = require('path');
 
 const router = express.Router();
 
-const utils = require('../utils');
 
 const pool = require('../../db');
 const TIMESTEP = 1;
@@ -37,7 +36,11 @@ router.get('/', async (req, res) => {
         return res.status(400).json({ message: 'Invalid session: no users' });
     }
 
-    const ind = Date.now() - sessionResult.rows[0].createdAt;
+    if (sessionResult.rows[0].startedAt !== null) {
+        const ind = Date.now() - sessionResult.rows[0].startedAt;
+        console.log(ind);
+    }
+
 
 
     return res.status(200).send(sessionResult.rows[0]);

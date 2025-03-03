@@ -3,7 +3,6 @@
 const express = require('express');
 const favicon = require('serve-favicon');
 const path = require('path');
-const utils = require('./routes/utils');
 
 const app = express();
 

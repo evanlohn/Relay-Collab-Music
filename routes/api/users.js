@@ -9,8 +9,6 @@ const router = express.Router();
 
 router.use(express.json());
 
-const utils = require('../utils');
-
 router.post('/create-user',
   body("name").trim().notEmpty().isString().isLength({max: 999}),
   body("clef").isInt({min:0, max:2}),
