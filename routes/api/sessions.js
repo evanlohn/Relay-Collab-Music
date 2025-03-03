@@ -68,7 +68,7 @@ router.post('/create-session', async (req, res) => {
     const client = await pool.connect();
     const query = {
         name: 'create-session',
-        text: 'INSERT INTO sessions (body, createdAt) VALUES (\'{}\', CURRENT_TIMESTAMP) RETURNING id',
+        text: 'INSERT INTO sessions (body, "createdAt") VALUES (\'{}\', CURRENT_TIMESTAMP) RETURNING id',
         rowMode: Array,
     };
 

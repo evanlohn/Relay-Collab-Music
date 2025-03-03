@@ -3,10 +3,10 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 function checkSessionStatus() {
-    fetch("/sessions/session-status") 
+    fetch("/sessions/session-status/" + sessionId) 
         .then(response => response.json())
         .then(data => {
-            if (data.started) {
+            if (data.startedAt) {
                 window.location.href = "/session/" + sessionId; // Redirect when session starts
             }
         })
