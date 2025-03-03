@@ -5,6 +5,8 @@ const favicon = require('serve-favicon');
 const path = require('path');
 const utils = require('./routes/utils');
 
+const pool = require('./db');
+
 const app = express();
 
 
@@ -24,6 +26,7 @@ app.set('views', path.join(__dirname, 'views'));
 // Include route files
 const sessionsRoute = require('./routes/api/sessions');
 const usersRoute = require('./routes/api/users');
+
 
 // Use routes
 app.use('/sessions', sessionsRoute);
