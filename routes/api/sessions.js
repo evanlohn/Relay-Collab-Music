@@ -54,11 +54,10 @@ router.post('/join-session', async (req, res) => {
         };
         
         const result = await client.query(query);
+        return res.status(201).send({ message: 'User added successfully', userId: result.rows[0].id });
     } finally {
         client && client.release();
     }
-
-    return res.status(201).send({ message: 'User added successfully', userId: result.rows[0].id });
 });
 
 router.get('/participants/:sessionId', async (req, res) => {

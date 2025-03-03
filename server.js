@@ -5,8 +5,6 @@ const favicon = require('serve-favicon');
 const path = require('path');
 const utils = require('./routes/utils');
 
-const pool = require('./db');
-
 const app = express();
 
 
@@ -43,6 +41,14 @@ app.get('/start/:sessionId', (req, res) => {
 
 app.get('/join', (req, res) => {
     res.sendFile(path.join(__dirname, "public", "joinSession.html"));
+});
+
+app.get('/session/:sessionId', (req, res) => {
+    if (true) {
+        res.sendFile(path.join(__dirname, "public", "waitingRoom.html"));
+    } else {
+        res.sendFile(path.join(__dirname, "public", "session.html"));
+    }
 });
 
 app.delete('/', (req, res) => {

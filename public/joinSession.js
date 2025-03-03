@@ -24,8 +24,7 @@ function addListener() {
             })
             .then(response => response.json())
             .then(result => {
-                console.log("Success:", result);
-                // Redirect or update UI based on response
+                window.location.href = "/session/" + sessionCode;
             })
             .catch(error => {
                 console.error("Error:", error);
