@@ -22,12 +22,12 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Include route files
 const sessionsRoute = require('./routes/api/sessions');
-const usersRoute = require('./routes/api/users');
+//const usersRoute = require('./routes/api/users');
 
 
 // Use routes
 app.use('/sessions', sessionsRoute);
-app.use('/users', usersRoute);
+//app.use('/users', usersRoute);
 
 app.get('/', async (req, res) => {
     res.sendFile(path.join(__dirname, "public", "home.html"));

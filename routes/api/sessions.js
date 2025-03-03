@@ -1,5 +1,12 @@
 
 const express = require('express');
+const {
+    check,
+    body,
+    query,
+    // ...
+    validationResult,
+  } = require("express-validator");
 const path = require('path');
 
 const router = express.Router();
@@ -10,18 +17,28 @@ const TIMESTEP = 1;
 const STEPS_PER_CHOICE = 30;
 
 // Retrieves the current user session
-router.get('/', async (req, res) => {
-    const { sessionCode } = req.params;
+router.get('/', 
+query("sessionCode").notEmpty().isInt(),
+async (req, res) => {
+    const result = validationResult(req);
+    if (!result.isEmpty()) {
+
+        res.status(400).send(JSON.stringify(result.mapped()));
+        return;
+    }
+    const { sessionCode } = req.query;
     const client = await pool.connect();
+
+    console.log(sessionCode);
     
     const sessionQuery = {
-        text: 'SELECT * FROM sessions WHERE sessions.id = $1',
+        text: 'SELECT * FROM sessions WHERE id = $1',
         values: [sessionCode],
         rowMode: Array,
     };
 
     const userQuery = {
-        text: 'SELECT * FROM users WHERE sessionId = $1 ORDER BY id',
+        text: 'SELECT * FROM users WHERE "sessionId" = $1 ORDER BY id',
         values: [sessionCode],
         rowMode: Array,
     };
@@ -80,7 +97,16 @@ router.post('/create-session', async (req, res) => {
     }
 });
 
-router.post('/join-session', async (req, res) => {
+router.post('/join-session',
+    body("name").trim().notEmpty().isString().isLength({max: 999}),
+    body("clef").isString(),
+    body("sessionCode").isInt(),
+async (req, res) => {
+    const result = validationResult(req);
+    if (!result.isEmpty()) {
+        res.status(400).send(JSON.stringify(result.mapped()));
+        return;
+    }
     const { name, clef, sessionCode } = req.body;
     const client = await pool.connect();
     try {
