@@ -1,9 +1,10 @@
 document.addEventListener("DOMContentLoaded", function() {
-    setInterval(pollForParticipants, 3000);
+    setInterval(pollForParticipantsAndModelStatus, 3000);
 });
 
-function pollForParticipants() {
+function pollForParticipantsAndModelStatus() {
     const participantsDisplay = document.getElementById("participants-count");
+    const startButton = document.getElementById("start-button");
 
     fetch("/sessions/participants/" + sessionId, {
         method: "GET",
@@ -12,6 +13,9 @@ function pollForParticipants() {
         }
     }).then(response => response.json()).then(result => { 
         participantsDisplay.innerText = result.count;
+        if (result.modelInitialized) {
+            startButton.disabled = false;
+        }
     });
 }
 

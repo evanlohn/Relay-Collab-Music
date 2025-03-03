@@ -26,11 +26,11 @@ function startPolling() {
 }
 
 function getParticipants() {
-    // fetch("/get-participants") // Fetch participant data
-    // .then(response => response.json())
-    // .then(data => {
+    fetch("/sessions/get-session") // Fetch participant data
+    .then(response => response.json())
+    .then(data => {
 
-    // });
+    });
     const userId = "my-unique-id";
 
     const container = document.getElementById("participants-container");

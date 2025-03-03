@@ -1,5 +1,6 @@
 
 const express = require('express');
+const mm = require('@magenta/music/node/music_rnn');
 const {
     check,
     body,
@@ -13,6 +14,7 @@ const router = express.Router();
 
 
 const pool = require('../../db');
+const modelStore = require('../../modelStore');
 const TIMESTEP = 1;
 const STEPS_PER_CHOICE = 30;
 
@@ -58,27 +60,7 @@ async (req, res) => {
         console.log(ind);
     }
 
-
-
     return res.status(200).send(sessionResult.rows[0]);
-});
-
-router.get('/101', async (req, res) => {
-    console.log('hello');
-    res.send('this is user 101 route');
-
-    console.log(process.env.DATABASE_URL);
-
-    const client = await pool.connect();
-    
-    client.query('SELECT * FROM sessions;', (err, res) => {
-      if (err) throw err;
-      for (let row of res.rows) {
-        console.log(JSON.stringify(row));
-      }
-      client.end();
-    });
-    console.log('done');
 });
 
 router.post('/create-session', async (req, res) => {
@@ -91,7 +73,10 @@ router.post('/create-session', async (req, res) => {
 
     try {
         const result = await client.query(query);
-        res.send({id: result.rows[0].id});
+        const sessionId = result.rows[0].id;
+        modelStore[sessionId] = new mmModel();
+
+        res.send({id: sessionId});
     } finally {
         client && client.release();
     }
@@ -167,7 +152,9 @@ router.get('/session-status/:sessionId', async (req, res) => {
     };
     try {
         const result = await client.query(query);
-        return res.send({ startedAt: result.rows[0].startedAt });
+        return res.send({ 
+            startedAt: result.rows[0].startedAt
+         });
 
     } catch (err) {
         console.error(err);
@@ -177,6 +164,7 @@ router.get('/session-status/:sessionId', async (req, res) => {
     }
 });
 
+// TODO: move model initialized check
 router.get('/participants/:sessionId', async (req, res) => {
     const sessionId = req.params.sessionId;
     const client = await pool.connect();
@@ -187,7 +175,10 @@ router.get('/participants/:sessionId', async (req, res) => {
     };
     try {
         const result = await client.query(query);
-        return res.send({ count: result.rows[0].count });
+        return res.send({ 
+            count: result.rows[0].count,
+            modelInitialized: modelStore[sessionId].initialized
+        });
 
     } catch (err) {
         console.error(err);
@@ -196,6 +187,17 @@ router.get('/participants/:sessionId', async (req, res) => {
         client && client.release();
     }
 });
+
+class mmModel {
+    constructor() {
+        this.model = new mm.MusicRNN(
+            'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn');
+        this.initialized = false;
+        this.model.initialize().then(() => {
+            this.initialized = true;
+        });
+    }
+}
 
 
 // export the router module so that server.js file can use it
