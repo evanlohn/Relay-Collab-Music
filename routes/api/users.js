@@ -30,7 +30,7 @@ router.post('/create-user',
 
 
     const query = {
-        name: 'create-session',
+        name: 'create-user',
         text: 'INSERT INTO users (name, clef, isHost, sessionId) VALUES ($1, $2, $3, $4) RETURNING id',
         values: [req_json.name, req_json.clef, req_json.isHost, req_json.sessionId],
         rowMode: Array,

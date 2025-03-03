@@ -7,6 +7,59 @@ const router = express.Router();
 const utils = require('../utils');
 
 const pool = require('../../db');
+const TIMESTEP = 1;
+const STEPS_PER_CHOICE = 30;
+
+// Retrieves the current user session
+router.get('/', async (req, res) => {
+    const { sessionCode } = req.params;
+    const client = await pool.connect();
+    
+    const sessionQuery = {
+        text: 'SELECT * FROM sessions WHERE sessions.id = $1',
+        values: [sessionCode],
+        rowMode: Array,
+    };
+
+    const userQuery = {
+        text: 'SELECT * FROM users WHERE sessionId = $1 ORDER BY id',
+        values: [sessionCode],
+        rowMode: Array,
+    };
+
+    let [sessionResult, usersResult] = await Promise.all([client.query(sessionQuery), client.query(userQuery)]);
+
+
+    if (sessionResult.rows.length === 0) {
+        return res.status(404).json({ message: 'Session not found' });
+    }
+    else if (usersResult.rows.length === 0) {
+        return res.status(400).json({ message: 'Invalid session: no users' });
+    }
+
+    const ind = Date.now() - sessionResult.rows[0].createdAt;
+
+
+    return res.status(200).send(sessionResult.rows[0]);
+});
+
+router.get('/101', async (req, res) => {
+    console.log('hello');
+    res.send('this is user 101 route');
+
+    console.log(process.env.DATABASE_URL);
+
+    const client = await pool.connect();
+    
+    client.query('SELECT * FROM sessions;', (err, res) => {
+      if (err) throw err;
+      for (let row of res.rows) {
+        console.log(JSON.stringify(row));
+      }
+      client.end();
+    });
+    console.log('done');
+});
 
 router.post('/create-session', async (req, res) => {
     const client = await pool.connect();
