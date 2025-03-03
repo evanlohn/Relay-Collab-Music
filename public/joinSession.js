@@ -24,7 +24,7 @@ function addListener() {
             })
             .then(response => response.json())
             .then(result => {
-                window.location.href = "/session/" + sessionCode;
+                window.location.href = "/waitingRoom/" + sessionCode;
             })
             .catch(error => {
                 console.error("Error:", error);

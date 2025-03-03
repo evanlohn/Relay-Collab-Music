@@ -42,9 +42,14 @@ app.get('/join', (req, res) => {
     res.sendFile(path.join(__dirname, "public", "joinSession.html"));
 });
 
+app.get('/waitingRoom/:sessionId', (req, res) => {
+    const sessionId = req.params.sessionId;
+    res.render('waitingRoom', { sessionId });
+});
+
 app.get('/session/:sessionId', (req, res) => {
     const sessionId = req.params.sessionId;
-    res.render("waitingRoom", { sessionId }); // eventually redirects
+    res.sendFile(path.join(__dirname, "public", "session.html"));
 });
 
 app.delete('/', (req, res) => {

@@ -73,7 +73,6 @@ router.post('/create-session', async (req, res) => {
     };
 
     try {
-        const client = utils.getSession();
         const result = await client.query(query);
 
         res.send({id: result.rows[0].id});
