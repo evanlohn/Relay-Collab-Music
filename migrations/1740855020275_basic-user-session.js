@@ -9,16 +9,20 @@ exports.shorthands = undefined;
  * @returns {Promise<void> | void}
  */
 exports.up = (pgm) => {
-    pgm.createTable('sessions', {
-        id: 'id',
-        body: { type: 'jsonb', notNull: true },
-        createdAt: {
-          type: 'timestamp',
-          notNull: true,
-          default: pgm.func('current_timestamp'),
-        },
-    });
-    pgm.createTable('users', {
+  pgm.createTable('sessions', {
+    id: 'id', // Assuming this is an auto-incrementing primary key
+    body: { type: 'jsonb', notNull: true },
+    createdAt: {
+        type: 'timestamp',
+        notNull: true,
+        default: pgm.func('current_timestamp'), // Automatically set to the current timestamp
+    },
+    startedAt: { // New timestamp for when the session starts
+        type: 'timestamp',
+        notNull: false,   // Allow NULL values initially
+    }
+  });
+  pgm.createTable('users', {
       id: 'id',
       name: { type: 'varchar(1000)', notNull: true },
       clef: { 

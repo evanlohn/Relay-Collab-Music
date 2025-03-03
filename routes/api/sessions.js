@@ -12,7 +12,7 @@ router.post('/create-session', async (req, res) => {
     const client = await pool.connect();
     const query = {
         name: 'create-session',
-        text: 'INSERT INTO sessions (body) VALUES (\'{}\') RETURNING id',
+        text: 'INSERT INTO sessions (body, createdAt) VALUES (\'{}\', CURRENT_TIMESTAMP) RETURNING id',
         rowMode: Array,
     };
 
@@ -55,6 +55,43 @@ router.post('/join-session', async (req, res) => {
         
         const result = await client.query(query);
         return res.status(201).send({ message: 'User added successfully', userId: result.rows[0].id });
+    } finally {
+        client && client.release();
+    }
+});
+
+router.post('/start-session', async (req, res) => {
+    const { sessionId } = req.body;
+    const client = await pool.connect();
+
+    try {
+        const query = {
+            text: 'UPDATE sessions SET "startedAt" = CURRENT_TIMESTAMP WHERE id = $1',
+            values: [sessionId]
+        };
+
+        await client.query(query);
+        return res.status(200).send({ message: 'Session started' });
+    } finally {
+        client && client.release();
+    }
+});
+
+router.get('/session-status/:sessionId', async (req, res) => {
+    const sessionId = req.params.sessionId;
+    const client = await pool.connect();
+
+    const query = {
+        text: 'SELECT "startedAt" FROM sessions WHERE id = $1',
+        values: [sessionId]
+    };
+    try {
+        const result = await client.query(query);
+        return res.send({ startedAt: result.rows[0].startedAt });
+
+    } catch (err) {
+        console.error(err);
+        return res.status(500).send({ startedAt: null });
     } finally {
         client && client.release();
     }

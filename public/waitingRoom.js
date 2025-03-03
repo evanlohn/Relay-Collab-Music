@@ -3,13 +3,12 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 function checkSessionStatus() {
-    console.log("session not started");
-    // fetch("/session-status") 
-    //     .then(response => response.json())
-    //     .then(data => {
-    //         if (data.started) {
-    //             window.location.href = "/session"; // Redirect when session starts?
-    //         }
-    //     })
-    //     .catch(error => console.error("Error checking session status:", error));
+    fetch("/sessions/session-status") 
+        .then(response => response.json())
+        .then(data => {
+            if (data.started) {
+                window.location.href = "/session/" + sessionId; // Redirect when session starts
+            }
+        })
+        .catch(error => console.error("Error checking session status:", error));
 }

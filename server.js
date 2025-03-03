@@ -44,8 +44,9 @@ app.get('/join', (req, res) => {
 });
 
 app.get('/session/:sessionId', (req, res) => {
+    const sessionId = req.params.sessionId;
     if (true) {
-        res.sendFile(path.join(__dirname, "public", "waitingRoom.html"));
+        res.render(waitingRoom, { sessionId });
     } else {
         res.sendFile(path.join(__dirname, "public", "session.html"));
     }

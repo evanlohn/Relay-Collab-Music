@@ -16,5 +16,15 @@ function pollForParticipants() {
 }
 
 function startSession() {
-    console.log("start session");
+    fetch("/sessions/start-session", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ sessionId })
+    }).then(response => {
+        if (response.status === 200) {
+            window.location.href = "/session/" + sessionId;
+        }
+    });
 }
