@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL, // Ensure this variable is set
     ssl: {
+        require: true,
         rejectUnauthorized: false
     },
     max: 20,  // Set the maximum number of clients in the pool
