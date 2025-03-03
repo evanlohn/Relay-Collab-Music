@@ -30,7 +30,6 @@ exports.up = (pgm) => {
         notNull: true,
         check: "clef IN ('treble', 'bass', 'alto')"
       },
-      isHost: { type: 'boolean', notNull: true},
       sessionId: {
         type: 'integer',
         notNull: true,
@@ -42,6 +41,7 @@ exports.up = (pgm) => {
         notNull: true,
         default: pgm.func('current_timestamp'),
       },
+      score: { type: 'jsonb', notNull: true }
     });
     pgm.createIndex('users', 'sessionId');
   };

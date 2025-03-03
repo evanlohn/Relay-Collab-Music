@@ -7,7 +7,7 @@ function checkSessionStatus() {
         .then(response => response.json())
         .then(data => {
             if (data.startedAt) {
-                window.location.href = "/session/" + sessionId; // Redirect when session starts
+                window.location.href = "/session/" + sessionId + "?userId=" + userId; // Redirect when session starts
             }
         })
         .catch(error => console.error("Error checking session status:", error));

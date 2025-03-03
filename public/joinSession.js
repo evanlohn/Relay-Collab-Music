@@ -24,7 +24,8 @@ function addListener() {
             })
             .then(response => response.json())
             .then(result => {
-                window.location.href = "/waitingRoom/" + sessionCode;
+                const userId = result.userId;
+                window.location.href = "/waitingRoom/" + sessionCode + "?userId=" + userId;
             })
             .catch(error => {
                 console.error("Error:", error);

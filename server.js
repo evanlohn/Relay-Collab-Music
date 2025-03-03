@@ -22,12 +22,12 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Include route files
 const sessionsRoute = require('./routes/api/sessions');
-//const usersRoute = require('./routes/api/users');
+const modelsRoute = require('./routes/api/models');
 
 
 // Use routes
 app.use('/sessions', sessionsRoute);
-//app.use('/users', usersRoute);
+app.use('/models', modelsRoute);
 
 app.get('/', async (req, res) => {
     res.sendFile(path.join(__dirname, "public", "home.html"));
@@ -44,33 +44,38 @@ app.get('/join', (req, res) => {
 
 app.get('/waitingRoom/:sessionId', (req, res) => {
     const sessionId = req.params.sessionId;
-    res.render('waitingRoom', { sessionId });
+    const userId = req.query.userId;
+    res.render('waitingRoom', { sessionId, userId });
 });
 
 app.get('/session/:sessionId', (req, res) => {
     const sessionId = req.params.sessionId;
-    res.sendFile(path.join(__dirname, "public", "session.html"));
+    const userId = req.query.userId;
+    
+    res.render('session', { 
+        sessionId: sessionId, 
+        userId: userId | null });
 });
 
-app.delete('/', (req, res) => {
-    const client = utils.getSession();
+// app.delete('/', (req, res) => {
+//     const client = utils.getSession();
 
-    // could do smth like this if we change the endpoint and make it a POST
-    // probably should do legit auth if we care tho
-    // console.log(req);
-    // const body = req.body;
+//     // could do smth like this if we change the endpoint and make it a POST
+//     // probably should do legit auth if we care tho
+//     // console.log(req);
+//     // const body = req.body;
 
-    // if (body.adminKey != process.env.ADMIN_KEY) {
-    //     res.sendStatus(401);
-    //     return;
-    // }
+//     // if (body.adminKey != process.env.ADMIN_KEY) {
+//     //     res.sendStatus(401);
+//     //     return;
+//     // }
 
-    client.query('TRUNCATE sessions CASCADE;', (err, res) => {
-      if (err) throw err;
-      client.end();
-    });
-    res.sendStatus(200);
-});
+//     client.query('TRUNCATE sessions CASCADE;', (err, res) => {
+//       if (err) throw err;
+//       client.end();
+//     });
+//     res.sendStatus(200);
+// });
 
 const port = process.env.PORT || 3000; // You can use environment variables for port configuration
 app.listen(port, () => {

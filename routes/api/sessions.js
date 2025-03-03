@@ -18,50 +18,34 @@ const modelStore = require('../../modelStore');
 const TIMESTEP = 1;
 const STEPS_PER_CHOICE = 30;
 
-// Retrieves the current user session
-router.get('/', 
-query("sessionCode").notEmpty().isInt(),
-async (req, res) => {
-    const result = validationResult(req);
-    if (!result.isEmpty()) {
-
-        res.status(400).send(JSON.stringify(result.mapped()));
-        return;
-    }
-    const { sessionCode } = req.query;
+router.get('/score/:sessionId', async (req, res) => {
+    const sessionId = req.params.sessionId;
     const client = await pool.connect();
-
-    console.log(sessionCode);
-    
-    const sessionQuery = {
-        text: 'SELECT * FROM sessions WHERE id = $1',
-        values: [sessionCode],
-        rowMode: Array,
-    };
 
     const userQuery = {
         text: 'SELECT * FROM users WHERE "sessionId" = $1 ORDER BY id',
-        values: [sessionCode],
+        values: [sessionId],
         rowMode: Array,
     };
 
-    let [sessionResult, usersResult] = await Promise.all([client.query(sessionQuery), client.query(userQuery)]);
-
-
-    if (sessionResult.rows.length === 0) {
-        return res.status(404).json({ message: 'Session not found' });
-    }
-    else if (usersResult.rows.length === 0) {
+    const userResult = await client.query(userQuery);
+    if (userResult.rows.length === 0) {
         return res.status(400).json({ message: 'Invalid session: no users' });
     }
-
-    if (sessionResult.rows[0].startedAt !== null) {
-        const ind = Date.now() - sessionResult.rows[0].startedAt;
-        console.log(ind);
-    }
-
-    return res.status(200).send(sessionResult.rows[0]);
+    
+    const users = userResult.rows;
+    users.forEach(user => {
+        if (user.score?.length === 0) {
+            return res.status(400).json({ message: 'Invalid session: no scores' });
+        }
+        delete user.createdAt;
+        delete user.name;
+        user.sample = user.score[user.score.length - 1];
+        delete user.score;
+    });
+    return res.send(users);
 });
+
 
 router.post('/create-session', async (req, res) => {
     const client = await pool.connect();
@@ -113,8 +97,8 @@ async (req, res) => {
 
         const query = {
             name: 'join-session',
-            text: 'INSERT INTO users (name, clef, "isHost", "sessionId") VALUES ($1, $2, $3, $4) RETURNING id',
-            values: [name, clef, false, sessionCode],
+            text: 'INSERT INTO users (name, clef, "sessionId", score) VALUES ($1, $2, $3, $4) RETURNING id',
+            values: [name, clef, sessionCode, []],
             rowMode: Array
         };
         
@@ -125,18 +109,71 @@ async (req, res) => {
     }
 });
 
+const QUANTIZED_TWINKLE_TWINKLE = {
+    notes: [
+      { pitch: 60, quantizedStartStep: 0, quantizedEndStep: 2 }, // 0.0 to 0.5
+      { pitch: 60, quantizedStartStep: 2, quantizedEndStep: 4 }, // 0.5 to 1.0
+      { pitch: 67, quantizedStartStep: 4, quantizedEndStep: 6 }, // 1.0 to 1.5
+      { pitch: 67, quantizedStartStep: 6, quantizedEndStep: 8 }, // 1.5 to 2.0
+      { pitch: 69, quantizedStartStep: 8, quantizedEndStep: 10 }, // 2.0 to 2.5
+      { pitch: 69, quantizedStartStep: 10, quantizedEndStep: 12 }, // 2.5 to 3.0
+      { pitch: 67, quantizedStartStep: 12, quantizedEndStep: 16 }, // 3.0 to 4.0
+      { pitch: 65, quantizedStartStep: 16, quantizedEndStep: 18 }, // 4.0 to 4.5
+      { pitch: 65, quantizedStartStep: 18, quantizedEndStep: 20 }, // 4.5 to 5.0
+      { pitch: 64, quantizedStartStep: 20, quantizedEndStep: 22 }, // 5.0 to 5.5
+      { pitch: 64, quantizedStartStep: 22, quantizedEndStep: 24 }, // 5.5 to 6.0
+      { pitch: 62, quantizedStartStep: 24, quantizedEndStep: 26 }, // 6.0 to 6.5
+      { pitch: 62, quantizedStartStep: 26, quantizedEndStep: 28 }, // 6.5 to 7.0
+      { pitch: 60, quantizedStartStep: 28, quantizedEndStep: 32 }, // 7.0 to 8.0  
+    ],
+    totalQuantizedSteps: 32, // total time converted to quantized steps
+    quantizationInfo: {
+        stepsPerQuarter: 4, // Number of steps per quarter note
+        quantizePost: true,  // Consider if you want to enable quantization of MIDI output
+    },
+    totalTime: 8.0
+  };
+
 router.post('/start-session', async (req, res) => {
     const { sessionId } = req.body;
     const client = await pool.connect();
 
     try {
-        const query = {
+        // query to get the number of users in the session
+        const userQuery = {
+            text: 'SELECT id FROM users WHERE "sessionId" = $1',
+            values: [sessionId]
+        };
+        const userResult = await client.query(userQuery);
+        if (userResult.rows.length === 0) {
+            return res.status(400).send({ message: 'No users in session' });
+        }
+
+        const modelObj = modelStore[sessionId];
+        if (! modelObj || ! modelObj.initialized) {
+            return res.status(400).send({ message: 'Model not initialized' });  
+        }
+
+        const updatePromises = userResult.rows.map(user => {
+            return modelObj.model.continueSequence(QUANTIZED_TWINKLE_TWINKLE, 16, 1.5).then(sample => {
+                const query = {
+                    text: 'UPDATE users SET score = $1 WHERE id = $2',
+                    values: [JSON.stringify([sample]), user.id]
+                };
+                return client.query(query);
+            });
+        });
+        await Promise.all(updatePromises);
+
+        const startQuery = {
             text: 'UPDATE sessions SET "startedAt" = CURRENT_TIMESTAMP WHERE id = $1',
             values: [sessionId]
         };
-
-        await client.query(query);
+        await client.query(startQuery);
         return res.status(200).send({ message: 'Session started' });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).send({ message: 'Internal server error' });
     } finally {
         client && client.release();
     }
@@ -164,8 +201,7 @@ router.get('/session-status/:sessionId', async (req, res) => {
     }
 });
 
-// TODO: move model initialized check
-router.get('/participants/:sessionId', async (req, res) => {
+router.get('/session-data/:sessionId', async (req, res) => {
     const sessionId = req.params.sessionId;
     const client = await pool.connect();
 
@@ -177,12 +213,31 @@ router.get('/participants/:sessionId', async (req, res) => {
         const result = await client.query(query);
         return res.send({ 
             count: result.rows[0].count,
-            modelInitialized: modelStore[sessionId].initialized
+            modelInitialized: modelStore[sessionId]?.initialized
         });
 
     } catch (err) {
         console.error(err);
         return res.status(500).send({ count: 0 });
+    } finally {
+        client && client.release();
+    }
+});
+
+router.get('/participants/:sessionId', async (req, res) => {
+    const sessionId = req.params.sessionId;
+    const client = await pool.connect();
+
+    const query = {
+        text: 'SELECT * FROM users WHERE "sessionId" = $1 ORDER BY id',
+        values: [sessionId]
+    };
+    try {
+        const result = await client.query(query);
+        return res.send(result.rows);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).send([]);
     } finally {
         client && client.release();
     }

@@ -14,5 +14,5 @@ function host() {
 
 function join() {
 	console.log("join");
-	window.location.href = `/join`
+	window.location.href = `/join`;
 }

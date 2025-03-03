@@ -6,7 +6,7 @@ function pollForParticipantsAndModelStatus() {
     const participantsDisplay = document.getElementById("participants-count");
     const startButton = document.getElementById("start-button");
 
-    fetch("/sessions/participants/" + sessionId, {
+    fetch("/sessions/session-data/" + sessionId, {
         method: "GET",
         headers: {
             "Content-Type": "application/json"
