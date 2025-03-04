@@ -50,7 +50,7 @@ router.post('/score/:sessionId', async (req, res) => {
 
         const now = Date.now();
         // in the grace period; no need to send any new data
-        if (now - session.lastRequested <= 10000) { return res.send({}); }
+        if (now - session.lastRequested <= 20000) { return res.send({}); }
 
         // if it isn't this user's turn, don't send anything
         if (req.body.userId !== session.participants[session.counter]) { return res.send({}); }
@@ -62,28 +62,47 @@ router.post('/score/:sessionId', async (req, res) => {
         try {
             const user = await getUserWithScore(req.body.userId, client);
             let choices = [];
-            if (user.score.length > 1) {
-                while (choices.length < 2) {
-                    const choice = rchoice(user.score);
-                    if (choices.includes(choice)) {
-                        continue;
-                    }
-                    choices.push(choice);
+
+            // push one or two of our own samples into choices
+            for (let i = 0; i < 2; i += 1) {
+                const choice = rchoice(user.score);
+                if (choices.includes(choice) || choice.notes.length === 0) {
+                    continue;
                 }
-            } else {
-                choices = [user.score[0]];
+                choices.push(choice);
             }
+            
+            // maybe push an empty score bit
+            if (Math.random() < 0.5) {
+                choices.push({
+                    notes: [],
+                    totalQuantizedSteps: 0, // total time converted to quantized steps
+                    quantizationInfo: {
+                        stepsPerQuarter: 4, // Number of steps per quarter note
+                        quantizePost: true,  // Consider if you want to enable quantization of MIDI output
+                    },
+                    totalTime: 0.0
+                });
+            }
+
             //console.log(req.body.userId);
             //console.log(userIds.filter((oid)=> parseInt(oid) !== req.body.userId));
             const otherUserId = rchoice(userIds.filter((oid)=> parseInt(oid) !== req.body.userId));
             const otherUser = await getUserWithScore(otherUserId, client);
-            for (let i = 0; i < 2; i += 1) {
+            for (let i = 0; i < (5 - choices.length); i += 1) {
                 // generate a sample with the model and push them into choices
                 const modelObj = modelStore[sessionId];
                 if (! modelObj || ! modelObj.initialized) {
                     return res.status(400).send({ message: 'Model not initialized' });
                 }
-                const sample = await modelObj.model.continueSequence(otherUser.score[otherUser.score.length - 1], 16, 1.5);
+                let toContinue;
+                for (let i = otherUser.score.length - 1; i >= 0; i -= 1) {
+                    if (otherUser.score[i].notes.length > 0) {
+                        toContinue = otherUser.score[i];
+                        break;
+                    }
+                }
+                const sample = await modelObj.model.continueSequence(toContinue, 16, 1.5);
                 choices.push(sample);
             }
             return res.send({ choices, otherUserId });
