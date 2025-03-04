@@ -15,35 +15,48 @@ const router = express.Router();
 
 const pool = require('../../db');
 const modelStore = require('../../modelStore');
-const TIMESTEP = 1;
-const STEPS_PER_CHOICE = 30;
+const userStore = require('../../userStore');
 
-router.get('/score/:sessionId', async (req, res) => {
+
+router.post('/score/:sessionId', async (req, res) => {
     const sessionId = req.params.sessionId;
-    const client = await pool.connect();
-
-    const userQuery = {
-        text: 'SELECT * FROM users WHERE "sessionId" = $1 ORDER BY id',
-        values: [sessionId],
-        rowMode: Array,
-    };
-
-    const userResult = await client.query(userQuery);
-    if (userResult.rows.length === 0) {
-        return res.status(400).json({ message: 'Invalid session: no users' });
-    }
     
-    const users = userResult.rows;
-    users.forEach(user => {
-        if (user.score?.length === 0) {
-            return res.status(400).json({ message: 'Invalid session: no scores' });
+
+    // compare req.body to userStore
+    const userScoreStatus = req.body;
+    const userIds = Object.keys(userScoreStatus);
+    if (! userIds.some(userId => userStore[userId] !== userScoreStatus[userId])) {
+        return res.send({});
+    }
+
+    const client = await pool.connect();
+    try {
+        const userQuery = {
+            text: 'SELECT * FROM users WHERE "sessionId" = $1 ORDER BY id',
+            values: [sessionId],
+            rowMode: Array,
+        };
+
+        const userResult = await client.query(userQuery);
+        if (userResult.rows.length === 0) {
+            return res.status(400).json({ message: 'Invalid session: no users' });
         }
-        delete user.createdAt;
-        delete user.name;
-        user.sample = user.score[user.score.length - 1];
-        delete user.score;
-    });
-    return res.send(users);
+        
+        const users = userResult.rows;
+        users.forEach(user => {
+            if (user.score?.length === 0) {
+                return res.status(400).json({ message: 'Invalid session: no scores' });
+            }
+            delete user.createdAt;
+            delete user.name;
+            user.numSamples = user.score.length;
+            user.sample = user.score[user.score.length - 1];
+            delete user.score;
+        });
+        return res.send({ users });
+    } finally {
+        client && client.release();
+    }
 });
 
 
@@ -164,6 +177,9 @@ router.post('/start-session', async (req, res) => {
             });
         });
         await Promise.all(updatePromises);
+        userResult.rows.forEach(user => {
+            userStore[user.id] = 1;
+        });
 
         const startQuery = {
             text: 'UPDATE sessions SET "startedAt" = CURRENT_TIMESTAMP WHERE id = $1',

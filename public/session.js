@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", function() {
     startPolling();
 });
 
+let userScoreStatus = {};
+
 function startPolling() {
     setInterval(getScore, 3000); 
 }
@@ -15,6 +17,8 @@ function getParticipants() {
     .then(response => response.json())
     .then(data => {
         data.forEach(participant => {
+            userScoreStatus[participant.id] = 0;
+
             const column = document.createElement("div");
             column.className = "col p-3 border";
             column.style.backgroundColor = participant.id === userId ? "#e0f7fa" : "#ffffff";
@@ -34,14 +38,24 @@ function getParticipants() {
 }
 
 function getScore() {
-    fetch("/sessions/score/" + sessionId)
-    .then(response => response.json())
+    // fetch score data with a post request containing userScoreStatus
+    fetch("/sessions/score/" + sessionId, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(userScoreStatus)
+    }).then(response => response.json())
     .then(data => {
-        data.forEach(participant => {
+        if (! data.users) {
+            return;
+        }
+        data.users.forEach(participant => {
             const div = document.getElementById("score-" + participant.id);
             if (! div) {
                 return;
             }
+            userScoreStatus[participant.id] = participant.numSamples;
             renderScore("score-" + participant.id, participant.clef, participant.sample);
         });
     });
