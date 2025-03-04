@@ -18,67 +18,78 @@ const modelStore = require('../../modelStore');
 const userStore = require('../../userStore');
 const sessionStore = require('../../sessionStore');
 
+function rchoice (arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+async function getUserWithScore (userId, client) {
+    const userQuery = {
+        text: 'SELECT score FROM users WHERE id = $1',
+        values: [userId]
+    };
+    const userResult = await client.query(userQuery);
+    if (userResult.rows.length === 0) {
+        return res.status(400).send({ message: 'Invalid user' });
+    }
+    const user = userResult.rows[0];
+    if (user.score.length === 0) {
+        return res.status(400).send({ message: 'Invalid user score' });
+    }
+    return user;
+}
 
 router.post('/score/:sessionId', async (req, res) => {
     const sessionId = req.params.sessionId;
     
     // compare req.body to userStore
-    const userScoreStatus = req.body.userScoreStatus;;
+    const userScoreStatus = req.body.userScoreStatus;
     const userIds = Object.keys(userScoreStatus);
     if (! userIds.some(userId => userStore[userId] !== userScoreStatus[userId])) {
         // check for decision making
         const session = sessionStore[sessionId];
 
         const now = Date.now();
-        if (now - session.lastRequested > 10000) { 
-            if (req.body.userId === session.participants[session.counter]) {
-                session.lastRequested = now;
-                session.counter = (session.counter + 1) % session.participants.length;
-                
-                const client = await pool.connect();
-                try {
-                    const userQuery = {
-                        text: 'SELECT score FROM users WHERE id = $1',
-                        values: [req.body.userId]
-                    };
-                    const userResult = await client.query(userQuery);
-                    if (userResult.rows.length === 0) {
-                        return res.status(400).send({ message: 'Invalid user' });
-                    }
-                    const user = userResult.rows[0];
-                    if (user.score.length === 0) {
-                        return res.status(400).send({ message: 'Invalid user score' });
-                    }
+        // in the grace period; no need to send any new data
+        if (now - session.lastRequested <= 10000) { return res.send({}); }
 
-                    let choices = [];
-                    if (user.score.length > 1) {
-                        while (choices.length < 2) {
-                            const choice = user.score[Math.floor(Math.random() * user.score.length)];
-                            if (choices.includes(choice)) {
-                                continue;
-                            }
-                            choices.push(choice);
-                        }
-                    } else {
-                        choices = [user.score[0]];
-                    }
-                    for (let i = 0; i < 2; i += 1) {
-                        // generate a sample with the model and push them into choices
-                        const modelObj = modelStore[sessionId];
-                        if (! modelObj || ! modelObj.initialized) {
-                            return res.status(400).send({ message: 'Model not initialized' });
-                        }
-                        const sample = await modelObj.model.continueSequence(user.score[user.score.length - 1], 16, 1.5);
-                        choices.push(sample);
-                    }
-                    return res.send({ choices });
-                } finally {
-                    client && client.release();
-                }
-            }
-        }
+        // if it isn't this user's turn, don't send anything
+        if (req.body.userId !== session.participants[session.counter]) { return res.send({}); }
+
+        session.lastRequested = now;
+        session.counter = (session.counter + 1) % session.participants.length;
         
-        return res.send({});
+        const client = await pool.connect();
+        try {
+            const user = await getUserWithScore(req.body.userId, client);
+            let choices = [];
+            if (user.score.length > 1) {
+                while (choices.length < 2) {
+                    const choice = rchoice(user.score);
+                    if (choices.includes(choice)) {
+                        continue;
+                    }
+                    choices.push(choice);
+                }
+            } else {
+                choices = [user.score[0]];
+            }
+            //console.log(req.body.userId);
+            //console.log(userIds.filter((oid)=> parseInt(oid) !== req.body.userId));
+            const otherUserId = rchoice(userIds.filter((oid)=> parseInt(oid) !== req.body.userId));
+            const otherUser = await getUserWithScore(otherUserId, client);
+            for (let i = 0; i < 2; i += 1) {
+                // generate a sample with the model and push them into choices
+                const modelObj = modelStore[sessionId];
+                if (! modelObj || ! modelObj.initialized) {
+                    return res.status(400).send({ message: 'Model not initialized' });
+                }
+                const sample = await modelObj.model.continueSequence(otherUser.score[otherUser.score.length - 1], 16, 1.5);
+                choices.push(sample);
+            }
+            return res.send({ choices, otherUserId });
+        } finally {
+            client && client.release();
+        }
     }
 
     const client = await pool.connect();
@@ -111,6 +122,8 @@ router.post('/score/:sessionId', async (req, res) => {
     }
 });
 
+// TODO: prevent those sneaky decision spoofers from making decisions
+// when it isn't their turn >:(
 router.post('/make-decision', async (req, res) => {
     const client = await pool.connect();
     try {

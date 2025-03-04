@@ -60,7 +60,10 @@ function getScore() {
             renderScore(div, participant.clef, participant.sample);
         });
         if (data.choices) {
-            const columnDiv = document.getElementById("score-" + userId);
+            //console.log('data');
+            //console.log(data);
+            const columnDiv = document.getElementById("score-" + data.otherUserId);
+            //console.log(columnDiv);
             if (! columnDiv) {
                 return;
             }
@@ -76,7 +79,7 @@ function getScore() {
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify({
-                            userId: userId,
+                            userId: data.otherUserId,
                             choice: sample
                         })
                     });
