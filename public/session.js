@@ -103,6 +103,8 @@ function renderScore(div, clef, sample) {
     let magentaNote;
     let spq = sample.quantizationInfo.stepsPerQuarter;
   
+    transposeSampleToClef(sample, clef);
+    
     if (sample.notes) {
       let timeAtBeginning = sample.notes[0].quantizedStartStep;
       if (timeAtBeginning > 0) {
@@ -120,7 +122,7 @@ function renderScore(div, clef, sample) {
           notes.push(getStaveRest(timeBetweenNotes, spq));
         }
       }
-      notes.push(genStaveNote(magentaNote, spq));
+      notes.push(genStaveNote(magentaNote, clef, spq));
     }
     let timeAtEnd = sample.totalQuantizedSteps - magentaNote.quantizedEndStep;
     if (timeAtEnd > 0) {
@@ -154,7 +156,7 @@ function getStaveRest(quantizedDuration, spq) {
     }
   }
   
-  function genStaveNote(magentaNote, spq) {
+  function genStaveNote(magentaNote, clef, spq) {
     let noteName = pitchToVexFlowKey(magentaNote.pitch);
     let duration = getVexDuration(magentaNote.quantizedEndStep - magentaNote.quantizedStartStep, spq);
     let dotted = duration[duration.length - 1] === 'd';
@@ -162,7 +164,8 @@ function getStaveRest(quantizedDuration, spq) {
   
     let staveNote = new Vex.Flow.StaveNote({
       keys: [noteName],
-      duration: duration
+      duration: duration,
+      clef: clef
     });
     if (dotted) {
       staveNote = addDot(staveNote);
@@ -186,9 +189,49 @@ function getStaveRest(quantizedDuration, spq) {
       return `${noteNames[pitch % 12]}/${octave}`;
   }
   
-  // TODO: handle missing durations
   function getVexDuration(steps, stepsPerQuarter) {
       const quarter = stepsPerQuarter;
       const durations = { 1: "16", 2: "8", 3: "8d", 4: "q", 6: "qd", 8: "h", 12: "hd", 16: "w" };
       return durations[steps] || "q"; // Default to quarter note if unknown
   }
+
+  function transposeSampleToClef(sample, clef) {
+    const clefRanges = {
+        treble: { min: 60, max: 84 }, // C4 to C6
+        bass: { min: 36, max: 60 },   // C2 to C4
+        alto: { min: 48, max: 72 }    // C3 to C5
+    };
+
+    const range = clefRanges[clef];
+    if (!range) return;
+
+    const pitches = sample.notes.map(note => note.pitch);
+    const optimalTranspose = findOptimalTranspose(pitches, range.min, range.max);
+
+    sample.notes.forEach(note => {
+        note.pitch += optimalTranspose;
+    });
+}
+
+function findOptimalTranspose(pitches, minPitch, maxPitch) {
+    const octave = 12;
+    let bestShift = 0;
+    let bestFit = Number.MAX_SAFE_INTEGER;
+
+    for (let shift = -2 * octave; shift <= 2 * octave; shift += octave) {
+        let outOfRangeCount = 0;
+        pitches.forEach(pitch => {
+            const transposedPitch = pitch + shift;
+            if (transposedPitch < minPitch || transposedPitch > maxPitch) {
+                outOfRangeCount++;
+            }
+        });
+
+        if (outOfRangeCount < bestFit) {
+            bestFit = outOfRangeCount;
+            bestShift = shift;
+        }
+    }
+
+    return bestShift;
+}
