@@ -64,7 +64,7 @@ router.post('/score/:sessionId', async (req, res) => {
             let choices = [];
 
             // push one or two of our own samples into choices
-            for (let i = 0; i < 2; i += 1) {
+            for (let i = 0; i < 3; i += 1) {
                 const choice = rchoice(user.score);
                 if (choices.includes(choice) || choice.notes.length === 0) {
                     continue;
@@ -72,18 +72,18 @@ router.post('/score/:sessionId', async (req, res) => {
                 choices.push(choice);
             }
             
-            // maybe push an empty score bit
-            if (Math.random() < 0.5) {
-                choices.push({
-                    notes: [],
-                    totalQuantizedSteps: 0, // total time converted to quantized steps
-                    quantizationInfo: {
-                        stepsPerQuarter: 4, // Number of steps per quarter note
-                        quantizePost: true,  // Consider if you want to enable quantization of MIDI output
-                    },
-                    totalTime: 0.0
-                });
-            }
+            // // maybe push an empty score bit
+            // if (Math.random() < 0.5) {
+            //     choices.push({
+            //         notes: [],
+            //         totalQuantizedSteps: 0, // total time converted to quantized steps
+            //         quantizationInfo: {
+            //             stepsPerQuarter: 4, // Number of steps per quarter note
+            //             quantizePost: true,  // Consider if you want to enable quantization of MIDI output
+            //         },
+            //         totalTime: 0.0
+            //     });
+            // }
 
             //console.log(req.body.userId);
             //console.log(userIds.filter((oid)=> parseInt(oid) !== req.body.userId));
