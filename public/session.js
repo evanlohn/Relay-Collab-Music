@@ -29,7 +29,7 @@ function getParticipants() {
 
             const scoreDiv = document.createElement("div");
             scoreDiv.id = "score-" + participant.id;
-            scoreDiv.style.height = "150px";
+            scoreDiv.style.height = "500px";
             column.appendChild(scoreDiv);
 
             container.appendChild(column);
@@ -93,9 +93,9 @@ function getScore() {
 
 function renderScore(div, clef, sample) {
     const renderer = new Vex.Flow.Renderer(div, Vex.Flow.Renderer.Backends.SVG);
-    renderer.resize(200, 150);
+    renderer.resize(400, 120);
     const context = renderer.getContext();
-    const stave = new Vex.Flow.Stave(10, 40, 180);
+    const stave = new Vex.Flow.Stave(10, 40, 300, { space_above_staff_ln: 2 });
 
     stave.addClef(clef).setContext(context).draw();
     const notes = [];
@@ -104,7 +104,7 @@ function renderScore(div, clef, sample) {
     let spq = sample.quantizationInfo.stepsPerQuarter;
   
     transposeSampleToClef(sample, clef);
-    
+
     if (sample.notes) {
       let timeAtBeginning = sample.notes[0].quantizedStartStep;
       if (timeAtBeginning > 0) {
