@@ -1,5 +1,6 @@
 
 function host() {
+	document.getElementById("host-button").disabled = true;
 	fetch("/sessions/create-session", {
 		method: "POST",
 		headers: {
@@ -13,6 +14,5 @@ function host() {
 }
 
 function join() {
-	console.log("join");
 	window.location.href = `/join`;
 }

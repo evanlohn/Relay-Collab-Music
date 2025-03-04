@@ -14,6 +14,13 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            text-align: center;
+        }
+        .bottom-right {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            margin: 0;
         }
     </style>
 </head>
@@ -23,8 +30,10 @@
 	<script src="./home.js"></script>
     <div class="container d-flex justify-content-center align-items-center center-container">
         <div>
-            <button class="btn btn-primary m-2" onClick="host()">Host</button>
+            <h1>relay</h1>
+            <button id="host-button" class="btn btn-primary m-2" onClick="host()">Host</button>
             <button class="btn btn-secondary m-2" onClick="join()">Join</button>
+            <p class="bottom-right">a web app by beccy & evan</p>
         </div>
     </div>
 </body>

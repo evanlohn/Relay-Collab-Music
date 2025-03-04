@@ -13,7 +13,6 @@ function addListener() {
 
             // Construct the request payload
             const data = { name, clef, sessionCode };
-            console.log(data);
 
             fetch("/sessions/join-session", {
                 method: "POST",
@@ -22,7 +21,12 @@ function addListener() {
                 },
                 body: JSON.stringify(data)
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Failed to join session");
+                }
+                return response.json();
+            })
             .then(result => {
                 const userId = result.userId;
                 window.location.href = "/waitingRoom/" + sessionCode + "?userId=" + userId;

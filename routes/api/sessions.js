@@ -198,6 +198,9 @@ async (req, res) => {
         if (sessionResult.rows.length === 0) {
             return res.status(404).json({ message: 'Session not found' });
         }
+        if (sessionResult.rows[0].startedAt) {
+            return res.status(400).json({ message: 'Session has already started' });
+        }
 
         const query = {
             name: 'join-session',

@@ -127,8 +127,7 @@ function renderScore(div, clef, sample) {
       notes.push(getStaveRest(timeAtEnd, spq));
     }
     const beams = Vex.Flow.Beam.generateBeams(notes);
-  
-    console.log(notes);
+
   
     const voice = new Vex.Flow.Voice({ num_beats: 4, beat_value: 4 });
     voice.addTickables(notes);
@@ -138,8 +137,6 @@ function renderScore(div, clef, sample) {
       b.setContext(context).draw();
     });
   
-    // Render voice
-    // div.innerHTML = "";
     voice.draw(context, stave);
 }
 
