@@ -44,25 +44,51 @@ function getScore() {
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify(userScoreStatus)
+        body: JSON.stringify({
+            userScoreStatus: userScoreStatus,
+            userId: userId
+        })
     }).then(response => response.json())
     .then(data => {
-        if (! data.users) {
-            return;
-        }
-        data.users.forEach(participant => {
+        data.users?.forEach(participant => {
             const div = document.getElementById("score-" + participant.id);
             if (! div) {
                 return;
             }
             userScoreStatus[participant.id] = participant.numSamples;
-            renderScore("score-" + participant.id, participant.clef, participant.sample);
+            div.innerHTML = "";
+            renderScore(div, participant.clef, participant.sample);
         });
+        if (data.choices) {
+            const columnDiv = document.getElementById("score-" + userId);
+            if (! columnDiv) {
+                return;
+            }
+            columnDiv.innerHTML = "";
+            data.choices.forEach(sample => {
+                // create a div to render the score and set an onclick that makes a post request to /sessions/submit-choice
+                const div = document.createElement("div");
+                div.style.cursor = "pointer";
+                div.onclick = () => {
+                    fetch("/sessions/make-decision", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            userId: userId,
+                            choice: sample
+                        })
+                    });
+                };
+                columnDiv.appendChild(div);
+                renderScore(div, 'treble', sample);
+            });
+        }
     });
 }
 
-function renderScore(elementId, clef, sample) {
-    const div = document.getElementById(elementId);
+function renderScore(div, clef, sample) {
     const renderer = new Vex.Flow.Renderer(div, Vex.Flow.Renderer.Backends.SVG);
     renderer.resize(200, 150);
     const context = renderer.getContext();

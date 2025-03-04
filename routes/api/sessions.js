@@ -16,16 +16,68 @@ const router = express.Router();
 const pool = require('../../db');
 const modelStore = require('../../modelStore');
 const userStore = require('../../userStore');
+const sessionStore = require('../../sessionStore');
 
 
 router.post('/score/:sessionId', async (req, res) => {
     const sessionId = req.params.sessionId;
     
-
     // compare req.body to userStore
-    const userScoreStatus = req.body;
+    const userScoreStatus = req.body.userScoreStatus;;
     const userIds = Object.keys(userScoreStatus);
     if (! userIds.some(userId => userStore[userId] !== userScoreStatus[userId])) {
+        // check for decision making
+        const session = sessionStore[sessionId];
+
+        const now = Date.now();
+        if (now - session.lastRequested > 10000) { 
+            if (req.body.userId === session.participants[session.counter]) {
+                session.lastRequested = now;
+                session.counter = (session.counter + 1) % session.participants.length;
+                
+                const client = await pool.connect();
+                try {
+                    const userQuery = {
+                        text: 'SELECT score FROM users WHERE id = $1',
+                        values: [req.body.userId]
+                    };
+                    const userResult = await client.query(userQuery);
+                    if (userResult.rows.length === 0) {
+                        return res.status(400).send({ message: 'Invalid user' });
+                    }
+                    const user = userResult.rows[0];
+                    if (user.score.length === 0) {
+                        return res.status(400).send({ message: 'Invalid user score' });
+                    }
+
+                    let choices = [];
+                    if (user.score.length > 1) {
+                        while (choices.length < 2) {
+                            const choice = user.score[Math.floor(Math.random() * user.score.length)];
+                            if (choices.includes(choice)) {
+                                continue;
+                            }
+                            choices.push(choice);
+                        }
+                    } else {
+                        choices = [user.score[0]];
+                    }
+                    for (let i = 0; i < 2; i += 1) {
+                        // generate a sample with the model and push them into choices
+                        const modelObj = modelStore[sessionId];
+                        if (! modelObj || ! modelObj.initialized) {
+                            return res.status(400).send({ message: 'Model not initialized' });
+                        }
+                        const sample = await modelObj.model.continueSequence(user.score[user.score.length - 1], 16, 1.5);
+                        choices.push(sample);
+                    }
+                    return res.send({ choices });
+                } finally {
+                    client && client.release();
+                }
+            }
+        }
+        
         return res.send({});
     }
 
@@ -59,6 +111,32 @@ router.post('/score/:sessionId', async (req, res) => {
     }
 });
 
+router.post('/make-decision', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { userId, choice } = req.body;
+        const userQuery = {
+            text: 'SELECT score FROM users WHERE id = $1',
+            values: [userId]
+        };
+        const userResult = await client.query(userQuery);
+        if (userResult.rows.length === 0) {
+            return res.status(400).send({ message: 'Invalid user' });
+        }
+        const user = userResult.rows[0];
+        user.score.push(choice);
+
+        const query = {
+            text: 'UPDATE users SET score = $1 WHERE id = $2',
+            values: [JSON.stringify(user.score), userId]
+        };
+        await client.query(query);
+        userStore[userId] = user.score.length;
+        return res.status(200).send({ message: 'Choice submitted' });
+    } finally {
+        client && client.release();
+    }
+});
 
 router.post('/create-session', async (req, res) => {
     const client = await pool.connect();
@@ -166,6 +244,12 @@ router.post('/start-session', async (req, res) => {
         if (! modelObj || ! modelObj.initialized) {
             return res.status(400).send({ message: 'Model not initialized' });  
         }
+
+        sessionStore[sessionId] = { 
+            counter: 0,
+            lastRequested: Date.now(),
+            participants: userResult.rows.map(user => user.id)
+        };
 
         const updatePromises = userResult.rows.map(user => {
             return modelObj.model.continueSequence(QUANTIZED_TWINKLE_TWINKLE, 16, 1.5).then(sample => {
