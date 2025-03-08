@@ -71,7 +71,7 @@ router.post('/score/:sessionId', async (req, res) => {
                 }
                 choices.push(choice);
             }
-            
+
             // // maybe push an empty score bit
             // if (Math.random() < 0.5) {
             //     choices.push({
@@ -103,6 +103,7 @@ router.post('/score/:sessionId', async (req, res) => {
                     }
                 }
                 const sample = await modelObj.model.continueSequence(toContinue, 16, 1.5);
+                keepSampleInValidRange(sample); // TODO: maybe save the actual choice in the db
                 choices.push(sample);
             }
             return res.send({ choices, otherUserId });
@@ -140,6 +141,17 @@ router.post('/score/:sessionId', async (req, res) => {
         client && client.release();
     }
 });
+
+function keepSampleInValidRange(sample, minPitch = 48, maxPitch = 83) {
+    for (let note of sample.notes) {
+        if (note.pitch > maxPitch) {
+            note.pitch -= 12;
+        }
+        if (note.pitch < minPitch) {
+            note.pitch += 12;
+        }
+    } 
+}
 
 // TODO: prevent those sneaky decision spoofers from making decisions
 // when it isn't their turn >:(
@@ -296,6 +308,7 @@ router.post('/start-session', async (req, res) => {
 
         const updatePromises = userResult.rows.map(user => {
             return modelObj.model.continueSequence(QUANTIZED_TWINKLE_TWINKLE, 16, 1.5).then(sample => {
+                keepSampleInValidRange(sample);
                 const query = {
                     text: 'UPDATE users SET score = $1 WHERE id = $2',
                     values: [JSON.stringify([sample]), user.id]
