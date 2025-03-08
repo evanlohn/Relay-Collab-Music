@@ -144,10 +144,10 @@ router.post('/score/:sessionId', async (req, res) => {
 
 function keepSampleInValidRange(sample, minPitch = 48, maxPitch = 83) {
     for (let note of sample.notes) {
-        if (note.pitch > maxPitch) {
+        while (note.pitch > maxPitch) {
             note.pitch -= 12;
         }
-        if (note.pitch < minPitch) {
+        while (note.pitch < minPitch) {
             note.pitch += 12;
         }
     } 
