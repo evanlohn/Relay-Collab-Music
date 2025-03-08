@@ -96,9 +96,9 @@ router.post('/score/:sessionId', async (req, res) => {
                     return res.status(400).send({ message: 'Model not initialized' });
                 }
                 let toContinue;
-                for (let i = otherUser.score.length - 1; i >= 0; i -= 1) {
-                    if (otherUser.score[i].notes.length > 0) {
-                        toContinue = otherUser.score[i];
+                for (let j = otherUser.score.length - 1; j >= 0; j -= 1) {
+                    if (otherUser.score[j].notes.length > 0) {
+                        toContinue = otherUser.score[j];
                         break;
                     }
                 }
