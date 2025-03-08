@@ -146,9 +146,9 @@ router.post('/score/:sessionId', async (req, res) => {
 router.post('/make-decision', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { userId, choice } = req.body;
+        const { chooserId, userId, choiceInd, choices, rerolls } = req.body;
         const userQuery = {
-            text: 'SELECT score FROM users WHERE id = $1',
+            text: 'SELECT score, "sessionId" FROM users WHERE id = $1',
             values: [userId]
         };
         const userResult = await client.query(userQuery);
@@ -156,7 +156,8 @@ router.post('/make-decision', async (req, res) => {
             return res.status(400).send({ message: 'Invalid user' });
         }
         const user = userResult.rows[0];
-        user.score.push(choice);
+        const sessionId = user.sessionId;
+        user.score.push(choices[choiceInd]);
 
         const query = {
             text: 'UPDATE users SET score = $1 WHERE id = $2',
@@ -164,6 +165,13 @@ router.post('/make-decision', async (req, res) => {
         };
         await client.query(query);
         userStore[userId] = user.score.length;
+
+        const decisionQuery = {
+            text: 'INSERT INTO decisions ("sessionId", "chooserId", "otherUserId", "choiceOptions", "choiceIndex", rerolls, "decisionMadeAt") VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)',
+            values: [sessionId, chooserId, userId, JSON.stringify(choices), choiceInd, rerolls ]
+        }
+        await client.query(decisionQuery);
+
         return res.status(200).send({ message: 'Choice submitted' });
     } finally {
         client && client.release();

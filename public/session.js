@@ -68,7 +68,7 @@ function getScore() {
                 return;
             }
             columnDiv.innerHTML = "";
-            data.choices.forEach(sample => {
+            data.choices.forEach((sample, sampleIndex) => {
                 // create a div to render the score and set an onclick that makes a post request to /sessions/submit-choice
                 const div = document.createElement("div");
                 div.style.cursor = "pointer";
@@ -79,8 +79,12 @@ function getScore() {
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify({
+                            sessionId: sessionId,
+                            chooserId: userId,
                             userId: data.otherUserId,
-                            choice: sample
+                            choices: data.choices,
+                            choiceInd: sampleIndex,
+                            rerolls: [] // TODO: implement rerolls and add here
                         })
                     });
                 };
