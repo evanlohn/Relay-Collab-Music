@@ -60,19 +60,30 @@ function getScore() {
             renderScore(div, participant.clef, participant.sample);
         });
         if (data.choices) {
-            //console.log('data');
-            //console.log(data);
             const columnDiv = document.getElementById("score-" + data.otherUserId);
-            //console.log(columnDiv);
             if (! columnDiv) {
                 return;
             }
             columnDiv.innerHTML = "";
+            let choiceButtons = [];
             data.choices.forEach((sample, sampleIndex) => {
+                // create a wrapper div
+                const wrapperDiv = document.createElement("div");
+                wrapperDiv.className = "score-wrapper d-flex align-items-center";
+
                 // create a div to render the score and set an onclick that makes a post request to /sessions/submit-choice
-                const div = document.createElement("div");
-                div.style.cursor = "pointer";
-                div.onclick = () => {
+                // create a div to render the score
+                const scoreDiv = document.createElement("div");
+                renderScore(scoreDiv, 'treble', sample);
+                wrapperDiv.appendChild(scoreDiv);
+
+                const button = document.createElement("button");
+                choiceButtons.push(button);
+                button.className = "btn btn-outline-primary m-2";
+                button.innerText = "Choose";
+                
+                button.onclick = () => {
+                    choiceButtons.forEach(b => b.disabled = true);
                     fetch("/sessions/make-decision", {
                         method: "POST",
                         headers: {
@@ -88,8 +99,10 @@ function getScore() {
                         })
                     });
                 };
-                columnDiv.appendChild(div);
-                renderScore(div, 'treble', sample);
+                wrapperDiv.appendChild(button);
+
+                // append the wrapper div to columnDiv
+                columnDiv.appendChild(wrapperDiv);
             });
         }
     });

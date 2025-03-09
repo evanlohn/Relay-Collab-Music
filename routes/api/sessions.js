@@ -45,7 +45,6 @@ router.post('/score/:sessionId', async (req, res) => {
     const userScoreStatus = req.body.userScoreStatus;
     const userIds = Object.keys(userScoreStatus);
     if (! userIds.some(userId => userStore[userId] !== userScoreStatus[userId])) {
-        // check for decision making
         const session = sessionStore[sessionId];
 
         const now = Date.now();
@@ -61,51 +60,20 @@ router.post('/score/:sessionId', async (req, res) => {
         const client = await pool.connect();
         try {
             const user = await getUserWithScore(req.body.userId, client);
-            let choices = [];
-
-            // push one or two of our own samples into choices
-            for (let i = 0; i < 3; i += 1) {
-                const choice = rchoice(user.score);
-                if (choices.includes(choice) || choice.notes.length === 0) {
-                    continue;
-                }
-                choices.push(choice);
-            }
-
-            // // maybe push an empty score bit
-            // if (Math.random() < 0.5) {
-            //     choices.push({
-            //         notes: [],
-            //         totalQuantizedSteps: 0, // total time converted to quantized steps
-            //         quantizationInfo: {
-            //             stepsPerQuarter: 4, // Number of steps per quarter note
-            //             quantizePost: true,  // Consider if you want to enable quantization of MIDI output
-            //         },
-            //         totalTime: 0.0
-            //     });
-            // }
-
-            //console.log(req.body.userId);
-            //console.log(userIds.filter((oid)=> parseInt(oid) !== req.body.userId));
+            // choose a random other user
             const otherUserId = rchoice(userIds.filter((oid)=> parseInt(oid) !== req.body.userId));
             const otherUser = await getUserWithScore(otherUserId, client);
-            for (let i = 0; i < (5 - choices.length); i += 1) {
-                // generate a sample with the model and push them into choices
-                const modelObj = modelStore[sessionId];
-                if (! modelObj || ! modelObj.initialized) {
-                    return res.status(400).send({ message: 'Model not initialized' });
-                }
-                let toContinue;
-                for (let j = otherUser.score.length - 1; j >= 0; j -= 1) {
-                    if (otherUser.score[j].notes.length > 0) {
-                        toContinue = otherUser.score[j];
-                        break;
-                    }
-                }
-                const sample = await modelObj.model.continueSequence(toContinue, 16, 1.5);
-                keepSampleInValidRange(sample); // TODO: maybe save the actual choice in the db
-                choices.push(sample);
+            if (otherUser.status) {
+                // this is a response not a user
+                return otherUser;
             }
+
+            const modelObj = modelStore[sessionId];
+            if (! modelObj || ! modelObj.initialized) {
+                return res.status(400).send({ message: 'Model not initialized' });
+            }
+
+            const choices = await generateChoices(user, otherUser, modelObj);
             return res.send({ choices, otherUserId });
         } finally {
             client && client.release();
@@ -141,6 +109,47 @@ router.post('/score/:sessionId', async (req, res) => {
         client && client.release();
     }
 });
+
+async function generateChoices(user, otherUser, modelObj) {
+    let choices = [];
+
+    // push one or two of our own samples into choices
+    for (let i = 0; i < 3; i += 1) {
+        const choice = rchoice(user.score);
+        if (choices.includes(choice) || choice.notes.length === 0) {
+            continue;
+        }
+        choices.push(choice);
+    }
+
+        // // maybe push an empty score bit
+    // if (Math.random() < 0.5) {
+    //     choices.push({
+    //         notes: [],
+    //         totalQuantizedSteps: 0, // total time converted to quantized steps
+    //         quantizationInfo: {
+    //             stepsPerQuarter: 4, // Number of steps per quarter note
+    //             quantizePost: true,  // Consider if you want to enable quantization of MIDI output
+    //         },
+    //         totalTime: 0.0
+    //     });
+    // }
+    
+    for (let i = 0; i < (5 - choices.length); i += 1) {
+        let toContinue;
+        for (let j = otherUser.score.length - 1; j >= 0; j -= 1) {
+            if (otherUser.score[j].notes.length > 0) {
+                toContinue = otherUser.score[j];
+                break;
+            }
+        }
+        const sample = await modelObj.model.continueSequence(toContinue, 16, 1.5);
+        keepSampleInValidRange(sample); // TODO: maybe save the actual choice in the db
+        choices.push(sample);
+    }
+
+    return choices;
+}
 
 function keepSampleInValidRange(sample, minPitch = 48, maxPitch = 83) {
     for (let note of sample.notes) {
@@ -307,7 +316,7 @@ router.post('/start-session', async (req, res) => {
         };
 
         const updatePromises = userResult.rows.map(user => {
-            return modelObj.model.continueSequence(QUANTIZED_TWINKLE_TWINKLE, 16, 1.5).then(sample => {
+            return modelObj.model.continueSequence(QUANTIZED_TWINKLE_TWINKLE, 16, 0.5).then(sample => {
                 keepSampleInValidRange(sample);
                 const query = {
                     text: 'UPDATE users SET score = $1 WHERE id = $2',
@@ -404,7 +413,10 @@ class mmModel {
         this.model = new mm.MusicRNN(
             'https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/basic_rnn');
         this.initialized = false;
+        
         this.model.initialize().then(() => {
+            this.model.spec.dataConverter.args.minPitch = 1;
+            this.model.spec.dataConverter.args.maxPitch = 127;
             this.initialized = true;
         });
     }
