@@ -113,6 +113,7 @@ function renderChoices(choices, otherUserId, div) {
     rerollButton.innerText = "reroll";
     rerollButton.onclick = () => {
         rerollButton.disabled = true;
+        rerollHistory.push(choices);
         fetch("/sessions/reroll", {
             method: "POST",
             headers: {
