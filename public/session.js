@@ -5,6 +5,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
 let userScoreStatus = {};
 
+let rerollHistory = [];
+
 function startPolling() {
     setInterval(getScore, 3000); 
 }
@@ -60,52 +62,75 @@ function getScore() {
             renderScore(div, participant.clef, participant.sample);
         });
         if (data.choices) {
-            const columnDiv = document.getElementById("score-" + data.otherUserId);
-            if (! columnDiv) {
-                return;
-            }
-            columnDiv.innerHTML = "";
-            let choiceButtons = [];
-            data.choices.forEach((sample, sampleIndex) => {
-                // create a wrapper div
-                const wrapperDiv = document.createElement("div");
-                wrapperDiv.className = "score-wrapper d-flex align-items-center";
-
-                // create a div to render the score and set an onclick that makes a post request to /sessions/submit-choice
-                // create a div to render the score
-                const scoreDiv = document.createElement("div");
-                renderScore(scoreDiv, 'treble', sample);
-                wrapperDiv.appendChild(scoreDiv);
-
-                const button = document.createElement("button");
-                choiceButtons.push(button);
-                button.className = "btn btn-outline-primary m-2";
-                button.innerText = "Choose";
-                
-                button.onclick = () => {
-                    choiceButtons.forEach(b => b.disabled = true);
-                    fetch("/sessions/make-decision", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            sessionId: sessionId,
-                            chooserId: userId,
-                            userId: data.otherUserId,
-                            choices: data.choices,
-                            choiceInd: sampleIndex,
-                            rerolls: [] // TODO: implement rerolls and add here
-                        })
-                    });
-                };
-                wrapperDiv.appendChild(button);
-
-                // append the wrapper div to columnDiv
-                columnDiv.appendChild(wrapperDiv);
-            });
+            const div = document.getElementById("score-" + data.otherUserId);
+            div.innerHTML = "";
+            renderChoices(data.choices, data.otherUserId, div);
         }
     });
+}
+
+function renderChoices(choices, otherUserId, div) {
+    let choiceButtons = [];
+    choices.forEach((sample, sampleIndex) => {
+        // create a wrapper div
+        const wrapperDiv = document.createElement("div");
+        wrapperDiv.className = "score-wrapper d-flex align-items-center";
+
+        // create a div to render the score and set an onclick that makes a post request to /sessions/submit-choice
+        const scoreDiv = document.createElement("div");
+        renderScore(scoreDiv, 'treble', sample);
+        wrapperDiv.appendChild(scoreDiv);
+
+        const button = document.createElement("button");
+        choiceButtons.push(button);
+        button.className = "btn btn-outline-primary m-2";
+        button.innerText = "<";
+        
+        button.onclick = () => {
+            choiceButtons.forEach(b => b.disabled = true);
+            fetch("/sessions/make-decision", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    sessionId: sessionId,
+                    chooserId: userId,
+                    otherUserId: otherUserId,
+                    choices: choices,
+                    choiceInd: sampleIndex,
+                    rerolls: rerollHistory
+                })
+            });
+        };
+        wrapperDiv.appendChild(button);
+
+        // append the wrapper div to columnDiv
+        div.appendChild(wrapperDiv);
+    });
+    const rerollButton = document.createElement("button");
+    rerollButton.className = "btn btn-outline-primary m-2";
+    rerollButton.innerText = "reroll";
+    rerollButton.onclick = () => {
+        rerollButton.disabled = true;
+        fetch("/sessions/reroll", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                sessionId: sessionId,
+                chooserId: userId,
+                otherUserId: otherUserId,
+            })
+        }).then(response => response.json())
+        .then((data) => {
+            const div = document.getElementById("score-" + otherUserId);
+            div.innerHTML = "";
+            renderChoices(data.choices, otherUserId, div);
+        });  
+    };
+    div.appendChild(rerollButton);
 }
 
 function renderScore(div, clef, sample) {
@@ -115,46 +140,57 @@ function renderScore(div, clef, sample) {
     const stave = new Vex.Flow.Stave(10, 40, 300, { space_above_staff_ln: 2 });
 
     stave.addClef(clef).setContext(context).draw();
+
     const notes = [];
 
-    let magentaNote;
-    let spq = sample.quantizationInfo.stepsPerQuarter;
-  
-    transposeSampleToClef(sample, clef);
-
     if (sample.notes) {
-      let timeAtBeginning = sample.notes[0].quantizedStartStep;
-      if (timeAtBeginning > 0) {
-        notes.push(getStaveRest(timeAtBeginning, spq));
-      }
-    }
-  
-    for (let i = 0; i < sample.notes.length; i += 1) {
-      // check for a rest before this note
-      magentaNote = sample.notes[i];
-      if (i !== 0) {
-        let lastMagentaNote = sample.notes[i - 1];
-        let timeBetweenNotes = magentaNote.quantizedStartStep - lastMagentaNote.quantizedEndStep; 
-        if (timeBetweenNotes > 0) {
-          notes.push(getStaveRest(timeBetweenNotes, spq));
-        }
-      }
-      notes.push(genStaveNote(magentaNote, clef, spq));
-    }
-    let timeAtEnd = sample.totalQuantizedSteps - magentaNote.quantizedEndStep;
-    if (timeAtEnd > 0) {
-      notes.push(getStaveRest(timeAtEnd, spq));
-    }
-    const beams = Vex.Flow.Beam.generateBeams(notes);
+        let transposedSample = transposeSampleToClef(sample, clef);
 
+        let magentaNote;
+        let spq = sample.quantizationInfo.stepsPerQuarter;
+
+        let timeAtBeginning = sample.notes[0].quantizedStartStep;
+        if (timeAtBeginning > 0) {
+        notes.push(getStaveRest(timeAtBeginning, spq));
+        }
+
+        for (let i = 0; i < transposedSample.notes.length; i += 1) {
+        // check for a rest before this note
+        magentaNote = transposedSample.notes[i];
+        if (i !== 0) {
+            let lastMagentaNote = transposedSample.notes[i - 1];
+            let timeBetweenNotes = magentaNote.quantizedStartStep - lastMagentaNote.quantizedEndStep; 
+            if (timeBetweenNotes > 0) {
+            notes.push(getStaveRest(timeBetweenNotes, spq));
+            }
+        }
+        notes.push(genStaveNote(magentaNote, clef, spq));
+        }
+        let timeAtEnd = sample.totalQuantizedSteps - magentaNote.quantizedEndStep;
+        if (timeAtEnd > 0) {
+        notes.push(getStaveRest(timeAtEnd, spq));
+        }
+    }
   
+    let beams;
     const voice = new Vex.Flow.Voice({ num_beats: 4, beat_value: 4 });
-    voice.addTickables(notes);
-  
-    Vex.Flow.Formatter.FormatAndDraw(context, stave, notes);
-    beams.forEach((b) => {
-      b.setContext(context).draw();
-    });
+    if (notes.length > 0) {
+        beams = Vex.Flow.Beam.generateBeams(notes);
+        voice.addTickables(notes);
+        Vex.Flow.Formatter.FormatAndDraw(context, stave, notes);
+        beams.forEach((b) => {
+          b.setContext(context).draw();
+        });
+    } else {
+        beams = [];
+    }
+
+    if (sample.type === "IMPROVISE") {
+        // use StaveText to write "improvise" above the staff
+        const text = new Vex.Flow.StaveText("Improvise", Vex.Flow.ModifierPosition.ABOVE, { shift_y: 20, shift_x: -50 });
+        text.setContext(context).setStave(stave);
+        text.draw(stave);
+    }
   
     voice.draw(context, stave);
 }
@@ -213,6 +249,7 @@ function getStaveRest(quantizedDuration, spq) {
   }
 
   function transposeSampleToClef(sample, clef) {
+    let sampleCopy = JSON.parse(JSON.stringify(sample));
     const clefRanges = {
         treble: { min: 60, max: 84 }, // C4 to C6
         bass: { min: 36, max: 60 },   // C2 to C4
@@ -222,12 +259,13 @@ function getStaveRest(quantizedDuration, spq) {
     const range = clefRanges[clef];
     if (!range) return;
 
-    const pitches = sample.notes.map(note => note.pitch);
+    const pitches = sampleCopy.notes.map(note => note.pitch);
     const optimalTranspose = findOptimalTranspose(pitches, range.min, range.max);
 
-    sample.notes.forEach(note => {
+    sampleCopy.notes.forEach(note => {
         note.pitch += optimalTranspose;
     });
+    return sampleCopy;
 }
 
 function findOptimalTranspose(pitches, minPitch, maxPitch) {

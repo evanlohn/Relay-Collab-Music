@@ -60,6 +60,10 @@ router.post('/score/:sessionId', async (req, res) => {
         const client = await pool.connect();
         try {
             const user = await getUserWithScore(req.body.userId, client);
+            if (user.status) {
+                // this is a response not a user
+                return otherUser;
+            }
             // choose a random other user
             const otherUserId = rchoice(userIds.filter((oid)=> parseInt(oid) !== req.body.userId));
             const otherUser = await getUserWithScore(otherUserId, client);
@@ -110,44 +114,63 @@ router.post('/score/:sessionId', async (req, res) => {
     }
 });
 
+router.post('/reroll', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { chooserId, otherUserId, sessionId } = req.body;
+        const user = await getUserWithScore(chooserId, client);
+        if (user.status) {
+            // this is a response not a user
+            return user;
+        }
+
+        const otherUser = await getUserWithScore(otherUserId, client);
+        if (otherUser.status) {
+            // this is a response not a user
+            return otherUser;
+        }
+
+        const modelObj = modelStore[sessionId];
+        if (! modelObj || ! modelObj.initialized) {
+            return res.status(400).send({ message: 'Model not initialized' });
+        }
+
+        const choices = await generateChoices(user, otherUser, modelObj);
+        return res.send({ choices });
+    } finally {
+        client && client.release();
+    }
+});
+
 async function generateChoices(user, otherUser, modelObj) {
     let choices = [];
 
     // push one or two of our own samples into choices
-    for (let i = 0; i < 3; i += 1) {
-        const choice = rchoice(user.score);
-        if (choices.includes(choice) || choice.notes.length === 0) {
-            continue;
-        }
-        choices.push(choice);
+    const scoreChoices = user.score.filter((sample) => !! sample.notes);
+    if (scoreChoices.length > 0) {
+        // add your current sample to the choices
+        choices.push(scoreChoices.pop());
     }
-
-        // // maybe push an empty score bit
-    // if (Math.random() < 0.5) {
-    //     choices.push({
-    //         notes: [],
-    //         totalQuantizedSteps: 0, // total time converted to quantized steps
-    //         quantizationInfo: {
-    //             stepsPerQuarter: 4, // Number of steps per quarter note
-    //             quantizePost: true,  // Consider if you want to enable quantization of MIDI output
-    //         },
-    //         totalTime: 0.0
-    //     });
-    // }
+    if (scoreChoices.length > 0) {
+        // add a random previous sample to the choices
+        choices.push(rchoice(scoreChoices));
+    }
+    if (Math.random() < 0.5) {
+        choices.push({
+            type: Math.random() < 0.5 ? "EMPTY" : "IMPROVISE"
+        });
+    }
     
+    const otherUserScore = otherUser.score.filter((sample) => sample.notes);
+    if (otherUserScore.length === 0) {
+        return choices;
+    }
+    const lastSample = otherUserScore.pop();
     for (let i = 0; i < (5 - choices.length); i += 1) {
-        let toContinue;
-        for (let j = otherUser.score.length - 1; j >= 0; j -= 1) {
-            if (otherUser.score[j].notes.length > 0) {
-                toContinue = otherUser.score[j];
-                break;
-            }
-        }
-        const sample = await modelObj.model.continueSequence(toContinue, 16, 1.5);
+        const sample = await modelObj.model.continueSequence(lastSample, 16, 1.5);
         keepSampleInValidRange(sample); // TODO: maybe save the actual choice in the db
         choices.push(sample);
     }
-
     return choices;
 }
 
@@ -167,10 +190,10 @@ function keepSampleInValidRange(sample, minPitch = 48, maxPitch = 83) {
 router.post('/make-decision', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { chooserId, userId, choiceInd, choices, rerolls } = req.body;
+        const { chooserId, otherUserId, choiceInd, choices, rerolls } = req.body;
         const userQuery = {
             text: 'SELECT score, "sessionId" FROM users WHERE id = $1',
-            values: [userId]
+            values: [otherUserId]
         };
         const userResult = await client.query(userQuery);
         if (userResult.rows.length === 0) {
@@ -182,14 +205,14 @@ router.post('/make-decision', async (req, res) => {
 
         const query = {
             text: 'UPDATE users SET score = $1 WHERE id = $2',
-            values: [JSON.stringify(user.score), userId]
+            values: [JSON.stringify(user.score), otherUserId]
         };
         await client.query(query);
-        userStore[userId] = user.score.length;
+        userStore[otherUserId] = user.score.length;
 
         const decisionQuery = {
             text: 'INSERT INTO decisions ("sessionId", "chooserId", "otherUserId", "choiceOptions", "choiceIndex", rerolls, "decisionMadeAt") VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)',
-            values: [sessionId, chooserId, userId, JSON.stringify(choices), choiceInd, rerolls ]
+            values: [sessionId, chooserId, otherUserId, JSON.stringify(choices), choiceInd, rerolls ]
         }
         await client.query(decisionQuery);
 
