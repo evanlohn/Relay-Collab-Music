@@ -8,6 +8,7 @@ let userScoreStatus = {};
 let rerollHistory = [];
 
 function startPolling() {
+    getScore();
     setInterval(getScore, 3000); 
 }
 

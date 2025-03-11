@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", function() {
+    pollForParticipantsAndModelStatus();
     setInterval(pollForParticipantsAndModelStatus, 3000);
 });
 
