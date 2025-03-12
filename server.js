@@ -22,12 +22,12 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Include route files
 const sessionsRoute = require('./routes/api/sessions');
-const modelsRoute = require('./routes/api/models');
+const adminRoute = require('./routes/api/admin');
 
 
 // Use routes
 app.use('/sessions', sessionsRoute);
-app.use('/models', modelsRoute);
+app.use('/admin', adminRoute);
 
 app.get('/', async (req, res) => {
     res.sendFile(path.join(__dirname, "public", "home.html"));
@@ -55,6 +55,10 @@ app.get('/session/:sessionId', (req, res) => {
     res.render('session', { 
         sessionId: sessionId, 
         userId: userId | null });
+});
+
+app.get('/summary', (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
 // app.delete('/', (req, res) => {
