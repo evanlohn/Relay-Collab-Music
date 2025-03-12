@@ -212,7 +212,7 @@ router.post('/make-decision', async (req, res) => {
 
         const decisionQuery = {
             text: 'INSERT INTO decisions ("sessionId", "chooserId", "otherUserId", "choiceOptions", "choiceIndex", rerolls, "decisionMadeAt") VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)',
-            values: [sessionId, chooserId, otherUserId, JSON.stringify(choices), choiceInd, rerolls ]
+            values: [sessionId, chooserId, otherUserId, JSON.stringify(choices), choiceInd, JSON.stringify(rerolls) ]
         }
         await client.query(decisionQuery);
 
