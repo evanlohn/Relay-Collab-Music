@@ -84,7 +84,7 @@ exports.up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 exports.down = (pgm) => {
-    pgm.dropTable('decisions');
+    // pgm.dropTable('decisions');
     pgm.dropTable('users');
     pgm.dropTable('sessions');
 
