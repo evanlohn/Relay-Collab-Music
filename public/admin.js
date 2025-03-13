@@ -95,7 +95,7 @@ function displaySessionData(data) {
                 const chooserScores = userScores[decision.chooserId];
                 const matchingScore = chooserScores.find(score => areSamplesEqual(score.sample, chosenScore));
                 if (matchingScore) {
-                    arrowPairs.push({ from: matchingScore.id, to: scoreId });
+                    arrowPairs.push({ from: matchingScore.id, to: scoreId, fromColor: userColors[decision.chooserId], toColor: userColors[decision.otherUserId] });
                 }
 
                 // Store the new score piece
@@ -113,7 +113,12 @@ function displaySessionData(data) {
     arrowPairs.forEach(pair => {
         new LeaderLine(
             document.getElementById(pair.from),
-            document.getElementById(pair.to)
+            document.getElementById(pair.to),
+            {
+                startPlugColor: pair.fromColor,
+                endPlugColor: pair.toColor,
+                gradient: true
+             }
         );
     });
 }
