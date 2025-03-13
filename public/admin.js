@@ -37,6 +37,8 @@ function displaySessionData(data) {
 
     const colors = ["#aeebba","#d7bdf2","#edd9b7","#fbfbc0","#f0c3ce","#bae1f0"];
     const userColors = {};
+    const userScores = {};
+    const arrowPairs = [];
 
     // Create header row
     const headerRow = document.createElement('div');
@@ -48,6 +50,7 @@ function displaySessionData(data) {
         userHeader.innerHTML = `<h4>${user.name}</h4>`;
         userHeader.style.backgroundColor = colors[index % colors.length];
         userColors[user.id] = colors[index % colors.length];
+        userScores[user.id] = [];
         headerRow.appendChild(userHeader);
     });
     gridContainer.appendChild(headerRow);
@@ -59,11 +62,14 @@ function displaySessionData(data) {
 
     data.users.forEach(user => {
         const scoreDiv = document.createElement('div');
+        const scoreId = `score-${user.id}-0`;
+        scoreDiv.id = scoreId;
         renderScore(scoreDiv, user.clef, user.score[0]);
         const userCol = document.createElement('div');
         userCol.className = 'col grid-cell';
         userCol.appendChild(scoreDiv);
         initialRow.appendChild(userCol);
+        userScores[user.id].push({ id: scoreId, sample: user.score[0] });
     });
     gridContainer.appendChild(initialRow);
 
@@ -77,17 +83,39 @@ function displaySessionData(data) {
             userCol.className = 'col grid-cell';
             if (user.id === decision.otherUserId) {
                 const scoreDiv = document.createElement('div');
+                const scoreId = `score-${user.id}-${index + 1}`;
+                scoreDiv.id = scoreId;
                 const chosenScore = decision.choiceOptions[decision.choiceIndex];
                 renderScore(scoreDiv, user.clef, chosenScore);
                 userCol.appendChild(scoreDiv);
                 userCol.style.backgroundColor = userColors[decision.chooserId];
+                decisionRow.appendChild(userCol);
+
+                // Check if the chosen score matches any of the chooser's score pieces
+                const chooserScores = userScores[decision.chooserId];
+                const matchingScore = chooserScores.find(score => areSamplesEqual(score.sample, chosenScore));
+                if (matchingScore) {
+                    arrowPairs.push({ from: matchingScore.id, to: scoreId });
+                }
+
+                // Store the new score piece
+                userScores[user.id].push({ id: scoreId, sample: chosenScore });
+            } else {
+                decisionRow.appendChild(userCol);
             }
-            decisionRow.appendChild(userCol);
         });
         gridContainer.appendChild(decisionRow);
     });
 
     sessionDataDiv.appendChild(gridContainer);
+
+    // Draw arrows
+    arrowPairs.forEach(pair => {
+        new LeaderLine(
+            document.getElementById(pair.from),
+            document.getElementById(pair.to)
+        );
+    });
 }
 
 function renderScore(div, clef, sample) {
@@ -120,7 +148,8 @@ function renderScore(div, clef, sample) {
 function generateNotes(sample, clef) {
     const notes = [];
     if (sample.notes) {
-        transposeSampleToClef(sample, clef);
+        let transposedSample = JSON.parse(JSON.stringify(sample));
+        transposeSampleToClef(transposedSample, clef);
 
         let magentaNote;
         let spq = sample.quantizationInfo.stepsPerQuarter;
@@ -130,10 +159,10 @@ function generateNotes(sample, clef) {
             notes.push(getStaveRest(timeAtBeginning, spq));
         }
 
-        for (let i = 0; i < sample.notes.length; i += 1) {
-            magentaNote = sample.notes[i];
+        for (let i = 0; i < transposedSample.notes.length; i += 1) {
+            magentaNote = transposedSample.notes[i];
             if (i !== 0) {
-                let lastMagentaNote = sample.notes[i - 1];
+                let lastMagentaNote = transposedSample.notes[i - 1];
                 let timeBetweenNotes = magentaNote.quantizedStartStep - lastMagentaNote.quantizedEndStep;
                 if (timeBetweenNotes > 0) {
                     notes.push(getStaveRest(timeBetweenNotes, spq));
@@ -239,4 +268,21 @@ function findOptimalTranspose(pitches, minPitch, maxPitch) {
     }
 
     return bestShift;
+}
+
+function areSamplesEqual(sample1, sample2) {
+    if (! sample1.notes || ! sample2.notes) {
+        return false;
+    }
+    if (sample1.notes.length !== sample2.notes.length) {
+        return false;
+    }
+    for (let i = 0; i < sample1.notes.length; i++) {
+        if (sample1.notes[i].pitch !== sample2.notes[i].pitch ||
+            sample1.notes[i].quantizedStartStep !== sample2.notes[i].quantizedStartStep ||
+            sample1.notes[i].quantizedEndStep !== sample2.notes[i].quantizedEndStep) {
+            return false;
+        }
+    }
+    return true;
 }
