@@ -34,16 +34,20 @@ function displaySessionData(data) {
     sessionDataDiv.appendChild(sessionInfo);
 
     const gridContainer = document.createElement('div');
-    //gridContainer.className = 'container';
+
+    const colors = ["#aeebba","#d7bdf2","#edd9b7","#fbfbc0","#f0c3ce","#bae1f0"];
+    const userColors = {};
 
     // Create header row
     const headerRow = document.createElement('div');
     headerRow.className = 'row';
 
-    data.users.forEach(user => {
+    data.users.forEach((user, index) => {
         const userHeader = document.createElement('div');
         userHeader.className = 'col grid-cell';
         userHeader.innerHTML = `<h4>${user.name}</h4>`;
+        userHeader.style.backgroundColor = colors[index % colors.length];
+        userColors[user.id] = colors[index % colors.length];
         headerRow.appendChild(userHeader);
     });
     gridContainer.appendChild(headerRow);
@@ -74,8 +78,9 @@ function displaySessionData(data) {
             if (user.id === decision.otherUserId) {
                 const scoreDiv = document.createElement('div');
                 const chosenScore = decision.choiceOptions[decision.choiceIndex];
-                renderScore(scoreDiv, user.clef, chosenScore, decision.chooserName);
+                renderScore(scoreDiv, user.clef, chosenScore);
                 userCol.appendChild(scoreDiv);
+                userCol.style.backgroundColor = userColors[decision.chooserId];
             }
             decisionRow.appendChild(userCol);
         });
@@ -85,7 +90,7 @@ function displaySessionData(data) {
     sessionDataDiv.appendChild(gridContainer);
 }
 
-function renderScore(div, clef, sample, chooserName = '') {
+function renderScore(div, clef, sample) {
     const renderer = new Vex.Flow.Renderer(div, Vex.Flow.Renderer.Backends.SVG);
     renderer.resize(400, 120);
     const context = renderer.getContext();
@@ -102,12 +107,13 @@ function renderScore(div, clef, sample, chooserName = '') {
         beams.forEach((b) => b.setContext(context).draw());
     }
 
-    if (chooserName) {
-        const text = new Vex.Flow.StaveText(chooserName, Vex.Flow.Modifier.Position.ABOVE, { shift_y: 20, shift_x: -50 });
+    if (sample.type === "IMPROVISE") {
+        // use StaveText to write "improvise" above the staff
+        const text = new Vex.Flow.StaveText("Improvise", Vex.Flow.ModifierPosition.ABOVE, { shift_y: 20, shift_x: -50 });
         text.setContext(context).setStave(stave);
-        text.draw();
+        text.draw(stave);
     }
-
+  
     voice.draw(context, stave);
 }
 
