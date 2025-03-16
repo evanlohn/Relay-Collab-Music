@@ -73,6 +73,7 @@ function displaySessionData(data) {
     });
     gridContainer.appendChild(initialRow);
 
+    let rerollCounts = {};
     // Create rows for each decision
     data.decisions.forEach((decision, index) => {
         const decisionRow = document.createElement('div');
@@ -87,6 +88,27 @@ function displaySessionData(data) {
                 scoreDiv.id = scoreId;
                 const chosenScore = decision.choiceOptions[decision.choiceIndex];
                 renderScore(scoreDiv, user.clef, chosenScore);
+                if (decision.rerolls && decision.rerolls.length > 0) {
+                    let actualRerollCount;
+                    if (!rerollCounts[decision.chooserId]) {
+                        actualRerollCount = decision.rerolls.length;
+                        rerollCounts[decision.chooserId] = decision.rerolls.length;
+                    } else {
+                        actualRerollCount = rerollCounts[decision.chooserId] - decision.rerolls.length;
+                        rerollCounts[decision.chooserId] = decision.rerolls.length;
+                    }
+
+                    if (actualRerollCount > 0) {
+                        const asterisk = document.createElement('span');
+                        asterisk.textContent = '*'.repeat(actualRerollCount);
+                        asterisk.style.position = 'absolute';
+                        asterisk.style.top = '0';
+                        asterisk.style.right = '0';
+                        asterisk.style.fontSize = '20px';
+                        scoreDiv.style.position = 'relative';
+                        scoreDiv.appendChild(asterisk);
+                    }
+                }
                 userCol.appendChild(scoreDiv);
                 userCol.style.backgroundColor = userColors[decision.chooserId];
                 decisionRow.appendChild(userCol);
