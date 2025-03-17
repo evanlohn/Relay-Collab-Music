@@ -74,6 +74,12 @@ function displaySessionData(data) {
     gridContainer.appendChild(initialRow);
 
     let rerollCounts = {};
+    const numDecisions = data.decisions.length;
+    let numRerolls = 0;
+    let numFirstChoice = 0;
+    let numNewCells = 0;
+    let numTacetCells = 0;
+    let numImproviseCells = 0;
     // Create rows for each decision
     data.decisions.forEach((decision, index) => {
         const decisionRow = document.createElement('div');
@@ -87,8 +93,17 @@ function displaySessionData(data) {
                 const scoreId = `score-${user.id}-${index + 1}`;
                 scoreDiv.id = scoreId;
                 const chosenScore = decision.choiceOptions[decision.choiceIndex];
+                if (decision.choiceIndex === 0) {
+                    numFirstChoice += 1;
+                }
+                if (chosenScore.type === "EMPTY") {
+                    numTacetCells += 1;
+                } else if (chosenScore.type === "IMPROVISE") {
+                    numImproviseCells += 1;
+                }
                 renderScore(scoreDiv, user.clef, chosenScore);
                 if (decision.rerolls && decision.rerolls.length > 0) {
+                    // temp: recalculate the actual # of rolls
                     let actualRerollCount;
                     if (!rerollCounts[decision.chooserId]) {
                         actualRerollCount = decision.rerolls.length;
@@ -107,6 +122,7 @@ function displaySessionData(data) {
                         asterisk.style.fontSize = '20px';
                         scoreDiv.style.position = 'relative';
                         scoreDiv.appendChild(asterisk);
+                        numRerolls += 1;
                     }
                 }
                 userCol.appendChild(scoreDiv);
@@ -118,6 +134,8 @@ function displaySessionData(data) {
                 const matchingScore = chooserScores.find(score => areSamplesEqual(score.sample, chosenScore));
                 if (matchingScore) {
                     arrowPairs.push({ from: matchingScore.id, to: scoreId, fromColor: userColors[decision.chooserId], toColor: userColors[decision.otherUserId] });
+                } else {
+                    numNewCells += 1;
                 }
 
                 // Store the new score piece
@@ -143,6 +161,34 @@ function displaySessionData(data) {
              }
         );
     });
+
+    const percentageFirstChoice = ((numFirstChoice / numDecisions) * 100).toFixed(2);
+    const percentageRerolls = ((numRerolls / numDecisions) * 100).toFixed(2);
+    const percentageNewCells = ((numNewCells / numDecisions) * 100).toFixed(2);
+    const percentageTacetCells = ((numTacetCells / numDecisions) * 100).toFixed(2);
+    const percentageImproviseCells = ((numImproviseCells / numDecisions) * 100).toFixed(2);
+
+    const percentageDiv = document.createElement('div');
+    percentageDiv.innerHTML = `
+        <p>Percentage of first choices: ${percentageFirstChoice}%</p>
+        <p>Percentage of rerolls: ${percentageRerolls}%</p>
+        <p>Percentage of new cells: ${percentageNewCells}%</p>
+        <p>Percentage of tacet cells: ${percentageTacetCells}%</p>
+        <p>Percentage of improvise cells: ${percentageImproviseCells}%</p>
+    `;
+    
+    const statsDiv = document.createElement('div');
+    statsDiv.innerHTML = `
+        <h2>Statistics</h2>
+        <p>Number of decisions: ${numDecisions}</p>
+        <p>Number of rerolls: ${numRerolls}</p>
+        <p>Number of first choices: ${numFirstChoice}</p>
+        <p>Number of new cells: ${numNewCells}</p>
+        <p>Number of tacet cells: ${numTacetCells}</p>
+        <p>Number of improvise cells: ${numImproviseCells}</p>
+    `;
+    sessionDataDiv.appendChild(statsDiv);
+    sessionDataDiv.appendChild(percentageDiv);
 }
 
 function renderScore(div, clef, sample) {
