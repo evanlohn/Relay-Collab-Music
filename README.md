@@ -1,2 +1,2 @@
 # Relay-backend
-Backend for the collaborative music app Relay (WIP)
+Backend for the collaborative music app Relay
